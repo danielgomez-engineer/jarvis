@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma/prisma";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
-
+import { Prisma } from "@prisma/client";
 
 export async function POST (request: Request) {
     try {
@@ -24,7 +24,7 @@ export async function POST (request: Request) {
         if(existUser) {
             return NextResponse.json(
                 {message: "User already exists"},
-                {status: 400 }
+                {status: 409 }
             );
         }
 
@@ -45,6 +45,12 @@ export async function POST (request: Request) {
             {status: 201}
         );
     } catch (err) {
+        if(err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+            return NextResponse.json(
+                {message: "User already exists"},
+                {status: 409}
+            );
+        }
         console.error("Internal Server error: ", err);
         return NextResponse.json(
             {message: "Internal server error"},
