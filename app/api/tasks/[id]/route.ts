@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma/prisma";
-import { validToken } from "../route";
+import { validToken } from "@/lib/auth/token";
 
 //===================================================UPDATE COMPLETED TASK=================================================
 export async function PATCH(
@@ -11,7 +9,15 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const taskId = parseInt(id);
+    const taskId = Number(id);
+
+    if(!Number.isInteger(taskId) || taskId <= 0) {
+      return NextResponse.json(
+        {message: "Invalid task id"},
+        {status: 400}
+      );
+    }
+
     const authResult = await validToken();
 
     if (authResult instanceof NextResponse) {
@@ -75,7 +81,14 @@ export async function PATCH(
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const {id} = await params;
-    const taskId = parseInt(id);
+    const taskId = Number(id);
+
+    if(!Number.isInteger(taskId) || taskId <= 0) {
+      return NextResponse.json(
+        {message: "invalid task id"},
+        {status: 400}
+      );
+    }
     const authResult = await validToken();
 
     // If authentication failed (returns a NextResponse error), halt execution and return it immediately

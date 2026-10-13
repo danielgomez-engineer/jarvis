@@ -1,25 +1,6 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma/prisma";
-
-
-//=========================================================Valid Token============================================================
-export async function validToken(): Promise<NextResponse | { userId: number }> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("token")?.value;
-
-  if (!token) {
-    return NextResponse.json({ message: "Unauthorized: No token provided" }, { status: 401 });
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: number };
-    return decoded; // Return { userId: number }
-  } catch (jwtError) {
-    return NextResponse.json({ message: "Unauthorized: Invalid or expired token" }, { status: 401 });
-  }
-}
+import { validToken } from "@/lib/auth/token";
 
 //=========================================================GET TASK============================================================
 export async function GET(request: Request) {

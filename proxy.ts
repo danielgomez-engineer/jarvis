@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
+import { verifyToken } from "./lib/auth/token";
 
 export function proxy(request: NextRequest) {
   const token = request.cookies.get("token")?.value;
@@ -7,12 +7,9 @@ export function proxy(request: NextRequest) {
   if (!token) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
+  const decoded = verifyToken(token);
 
-  try {
-    jwt.verify(token, process.env.JWT_SECRET!, {
-      algorithms: ["HS256"],
-    });
-  } catch {
+  if (!decoded) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
