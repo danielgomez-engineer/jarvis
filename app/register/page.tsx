@@ -1,6 +1,12 @@
 "use client";
 
+import {
+  USER_EMAIL_MAX,
+  USER_NAME_MAX,
+  USER_PASSWORD_MAX,
+} from "@/lib/validations/limits";
 import Link from "next/link";
+import CharCounter from "@/components/CharCounter";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import { toast } from "sonner";
@@ -41,10 +47,9 @@ export default function RegisterPage() {
 
       // esperar 1 segundos  para que el usuario vea el mensaje y luego sea redirigido al login
       setTimeout(() => {
-      // EXITO: Redirigir al login
+        // EXITO: Redirigir al login
         router.push("/login");
       }, 1000);
-
     } catch (err) {
       toast.error("Error de conexión con el servidor");
     } finally {
@@ -90,9 +95,10 @@ export default function RegisterPage() {
           <div className="space-y-1.5">
             <label
               htmlFor="name"
-              className="block text-xs font-medium text-gray-700"
+              className="flex items-center justify-between text-xs font-medium text-gray-700"
             >
-              Nombre Completo
+              <span>Nombre Completo</span>
+              {<CharCounter length={name.length} max={USER_NAME_MAX} />}
             </label>
             <input
               id="name"
@@ -101,6 +107,7 @@ export default function RegisterPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
+              maxLength={USER_NAME_MAX}
               className="w-full rounded-xl border border-gray-300 bg-gray-50/50 px-4 py-2.5 text-sm text-gray-900 transition-all focus:border-cyan-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-600/20"
             />
           </div>
@@ -119,6 +126,7 @@ export default function RegisterPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              maxLength={USER_EMAIL_MAX}
               className="w-full rounded-xl border border-gray-300 bg-gray-50/50 px-4 py-2.5 text-sm text-gray-900 transition-all focus:border-cyan-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-600/20"
             />
           </div>
@@ -135,8 +143,17 @@ export default function RegisterPage() {
               type="password"
               placeholder="••••••••"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+
+                if (
+                  new TextEncoder().encode(value).length <= USER_PASSWORD_MAX
+                ) {
+                  setPassword(value);
+                }
+              }}
               required
+              maxLength={USER_PASSWORD_MAX}
               className="w-full rounded-xl border border-gray-300 bg-gray-50/50 px-4 py-2.5 text-sm text-gray-900 transition-all focus:border-cyan-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-600/20"
             />
           </div>
@@ -160,7 +177,6 @@ export default function RegisterPage() {
             Inicia Sesión
           </Link>
         </div>
-
       </div>
     </div>
   );

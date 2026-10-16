@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma/prisma";
 import { validToken } from "@/lib/auth/token";
+import { updatedCompletedTaskSchema } from "@/lib/validations/tasks";
 
 //===================================================UPDATE COMPLETED TASK=================================================
 export async function PATCH(
@@ -11,11 +12,8 @@ export async function PATCH(
     const { id } = await params;
     const taskId = Number(id);
 
-    if(!Number.isInteger(taskId) || taskId <= 0) {
-      return NextResponse.json(
-        {message: "Invalid task id"},
-        {status: 400}
-      );
+    if (!Number.isInteger(taskId) || taskId <= 0) {
+      return NextResponse.json({ message: "Invalid task id" }, { status: 400 });
     }
 
     const authResult = await validToken();
@@ -24,28 +22,21 @@ export async function PATCH(
       return authResult;
     }
 
-    //5. parse the JSON body safely — request.json() THROWS on empty/malformed
-    //   bodies (same reasoning as jwt.verify above), so it needs its own try/catch.
-    let body: { completed?: unknown };
+    let body: unknown;
+
     try {
       body = await request.json();
-    } catch (jsonError) {
-      return NextResponse.json(
-        { message: "Invalid or missing JSON body" },
-        { status: 400 },
-      );
+    } catch {
+      return NextResponse.json({ code: "INVALID_JSON" }, { status: 400 });
     }
 
-    const { completed } = body;
+    const validation = updatedCompletedTaskSchema.safeParse(body);
 
-    //6. validate the TYPE of "completed", not just its truthiness —
-    //   `if (!completed)` would wrongly reject a legitimate `completed: false`.
-    if (typeof completed !== "boolean") {
-      return NextResponse.json(
-        { message: "The field 'completed' must be a boolean (true or false)" },
-        { status: 400 },
-      );
+    if (!validation.success) {
+      return NextResponse.json({ code: "VALIDATION_ERROR" }, { status: 400 });
     }
+
+    const { completed } = validation.data;
 
     //7. we update away the task
     const taskUpdate = await prisma.task.updateMany({
@@ -78,21 +69,21 @@ export async function PATCH(
 
 //===================================================DELETE TASK=================================================
 
-export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(
+  _: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
   try {
-    const {id} = await params;
+    const { id } = await params;
     const taskId = Number(id);
 
-    if(!Number.isInteger(taskId) || taskId <= 0) {
-      return NextResponse.json(
-        {message: "invalid task id"},
-        {status: 400}
-      );
+    if (!Number.isInteger(taskId) || taskId <= 0) {
+      return NextResponse.json({ message: "invalid task id" }, { status: 400 });
     }
     const authResult = await validToken();
 
     // If authentication failed (returns a NextResponse error), halt execution and return it immediately
-    if(authResult instanceof NextResponse) {
+    if (authResult instanceof NextResponse) {
       return authResult;
     }
 
@@ -104,13 +95,19 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
     });
 
     // check if any row was affected
-    if(deleteTask.count === 0) {
-      return NextResponse.json ({message: "Task Not Found"}, {status: 404});
+    if (deleteTask.count === 0) {
+      return NextResponse.json({ message: "Task Not Found" }, { status: 404 });
     }
 
-    return NextResponse.json({message: "Task Delete satisfactory"}, {status: 200});
+    return NextResponse.json(
+      { message: "Task Delete satisfactory" },
+      { status: 200 },
+    );
   } catch (err) {
     console.error("Internal Server error: ", err);
-    return NextResponse.json({message: "Internal Server error"}, {status: 500});
+    return NextResponse.json(
+      { message: "Internal Server error" },
+      { status: 500 },
+    );
   }
 }

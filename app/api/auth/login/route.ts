@@ -3,20 +3,25 @@ import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { getJwtSecret } from "@/lib/auth/token";
+import { loginSchema } from "@/lib/validations/auth";
 
 export async function POST(request: Request) {
   try {
-    //1. LEER LOS DATOS DEL JSON
-    const body = await request.json();
-    const { email, password } = body;
+    let body: unknown;
 
-    //2. VALIDAR QUE VENGAN LOS CAMPOS OBLIGATORIOS
-    if (!email || !password) {
-      return NextResponse.json(
-        { message: "The email and password ir required" },
-        { status: 400 },
-      );
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ code: "INVALID_JSON" }, { status: 400 });
     }
+
+    const validation = loginSchema.safeParse(body);
+
+    if (!validation.success) {
+      return NextResponse.json({ code: "VALIDATION_ERROR" }, { status: 400 });
+    }
+
+    const { email, password } = validation.data;
 
     // 3. VALIDAR EN LA BD SI EXISTE EL USUARIO
     const user = await prisma.user.findUnique({

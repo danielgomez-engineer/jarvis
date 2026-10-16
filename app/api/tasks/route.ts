@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma/prisma";
 import { validToken } from "@/lib/auth/token";
+import { createTaskSchema } from "@/lib/validations/tasks";
 
 //=========================================================GET TASK============================================================
 export async function GET(request: Request) {
@@ -42,27 +43,21 @@ export async function POST(request: Request) {
       return authResult;
     }
 
-    // 2. parse the JSON body safely — request.json() THROWS on empty/malformed bodies
-    let body: { title?: string; description?: string; completed?: boolean };
+    let body: unknown;
+
     try {
       body = await request.json();
-    } catch (jsonError) {
-      return NextResponse.json(
-        { message: "Invalid or missing JSON body" },
-        { status: 400 },
-      );
+    } catch {
+      return NextResponse.json({ code: "INVALID_JSON" }, { status: 400 });
     }
 
-    // 3. Extraer los datos una vez que el body está validado y protegido
-    const { title, description, completed } = body;
+    const validation = createTaskSchema.safeParse(body);
 
-    // 4. validate null fields
-    if (!title) {
-      return NextResponse.json(
-        { message: "The title is required" },
-        { status: 400 },
-      );
+    if (!validation.success) {
+      return NextResponse.json({ code: "VALIDATION_ERROR" }, { status: 400 });
     }
+
+    const { title, description, completed } = validation.data;
 
     // 5. we put away the task
     const newTask = await prisma.task.create({

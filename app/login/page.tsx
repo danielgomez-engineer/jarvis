@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { USER_EMAIL_MAX, USER_PASSWORD_MAX } from "@/lib/validations/limits";
 
 export default function LoginPage() {
 
@@ -93,6 +94,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              maxLength={USER_EMAIL_MAX}
               className="w-full rounded-xl border border-gray-300 bg-gray-50/50 px-4 py-2.5 text-sm text-gray-900 transition-all focus:border-cyan-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-600/20"
             />
           </div>
@@ -108,7 +110,13 @@ export default function LoginPage() {
               type="password"
               placeholder="••••••••"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+
+                if(new TextEncoder().encode(value).length <= USER_PASSWORD_MAX) {
+                  setPassword(value);
+                }
+              }}
               required
               className="w-full rounded-xl border border-gray-300 bg-gray-50/50 px-4 py-2.5 text-sm text-gray-900 transition-all focus:border-cyan-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-600/20"
             />
