@@ -4,6 +4,12 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { TrashIcon } from "@heroicons/react/24/outline";
+import {
+  TASK_DESCRIPTION_MAX,
+  TASK_TITLE_MAX,
+  TASK_TITLE_MIN,
+} from "@/lib/validations/limits";
+import CharCounter from "@/components/CharCounter";
 
 // Shape of a task, matching what Prisma/the backend returns.
 // This gives type safety and autocomplete to "tasks" below.
@@ -274,9 +280,10 @@ export default function DashboardPage() {
             <div className="space-y-1.5">
               <label
                 htmlFor="title"
-                className="block text-xs font-medium text-gray-700"
+                className="flex items-center justify-between text-xs font-medium text-gray-700"
               >
-                Título
+                <span>Título</span>
+                {<CharCounter length={title.length} max={TASK_TITLE_MAX} />}
               </label>
               <input
                 id="title"
@@ -285,6 +292,8 @@ export default function DashboardPage() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
+                minLength={TASK_TITLE_MIN}
+                maxLength={TASK_TITLE_MAX}
                 className="w-full rounded-xl border border-gray-300 bg-gray-50/50 px-4 py-2.5 text-sm text-gray-900 transition-all focus:border-cyan-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-600/20"
               />
             </div>
@@ -292,9 +301,15 @@ export default function DashboardPage() {
             <div className="space-y-1.5">
               <label
                 htmlFor="description"
-                className="block text-xs font-medium text-gray-700"
+                className="flex items-center justify-between text-xs font-medium text-gray-700"
               >
-                Descripción
+                <span>Descripción</span>
+                {
+                  <CharCounter
+                    length={description.length}
+                    max={TASK_DESCRIPTION_MAX}
+                  />
+                }
               </label>
               <input
                 id="description"
@@ -302,6 +317,7 @@ export default function DashboardPage() {
                 placeholder="Esta tarea la voy a hacer..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
+                maxLength={TASK_DESCRIPTION_MAX}
                 className="w-full rounded-xl border border-gray-300 bg-gray-50/50 px-4 py-2.5 text-sm text-gray-900 transition-all focus:border-cyan-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-600/20"
               />
             </div>
