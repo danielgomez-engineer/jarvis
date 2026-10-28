@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma/prisma";
 import { validToken } from "@/lib/auth/token";
 import { updatedCompletedTaskSchema } from "@/lib/validations/tasks";
+import { API_ERROR_CODES } from "@/lib/errors/codes";
+import { getFieldErrors } from "@/lib/validations/fieldErrors";
 
 //===================================================UPDATE COMPLETED TASK=================================================
 export async function PATCH(
@@ -13,7 +15,7 @@ export async function PATCH(
     const taskId = Number(id);
 
     if (!Number.isInteger(taskId) || taskId <= 0) {
-      return NextResponse.json({ message: "Invalid task id" }, { status: 400 });
+      return NextResponse.json({ code: API_ERROR_CODES.INVALID_TASK_ID }, { status: 400 });
     }
 
     const authResult = await validToken();
@@ -27,13 +29,13 @@ export async function PATCH(
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json({ code: "INVALID_JSON" }, { status: 400 });
+      return NextResponse.json({ code: API_ERROR_CODES.INVALID_JSON }, { status: 400 });
     }
 
     const validation = updatedCompletedTaskSchema.safeParse(body);
 
     if (!validation.success) {
-      return NextResponse.json({ code: "VALIDATION_ERROR" }, { status: 400 });
+      return NextResponse.json({ code: API_ERROR_CODES.VALIDATION_ERROR, fields: getFieldErrors(validation.error) }, { status: 400 });
     }
 
     const { completed } = validation.data;
@@ -51,17 +53,17 @@ export async function PATCH(
 
     // Check if any row was affected
     if (taskUpdate.count === 0) {
-      return NextResponse.json({ message: "Task not found" }, { status: 404 });
+      return NextResponse.json({ code: API_ERROR_CODES.TASK_NOT_FOUND }, { status: 404 });
     }
 
     return NextResponse.json(
-      { message: "Task Update Satisfactory" },
+      {  },
       { status: 200 },
     );
   } catch (err) {
     console.error("Internal server error: ", err);
     return NextResponse.json(
-      { message: "Internal Server Error" },
+      { code: API_ERROR_CODES.INTERNAL_ERROR },
       { status: 500 },
     );
   }
@@ -78,7 +80,7 @@ export async function DELETE(
     const taskId = Number(id);
 
     if (!Number.isInteger(taskId) || taskId <= 0) {
-      return NextResponse.json({ message: "invalid task id" }, { status: 400 });
+      return NextResponse.json({ code: API_ERROR_CODES.INVALID_TASK_ID }, { status: 400 });
     }
     const authResult = await validToken();
 
@@ -96,17 +98,17 @@ export async function DELETE(
 
     // check if any row was affected
     if (deleteTask.count === 0) {
-      return NextResponse.json({ message: "Task Not Found" }, { status: 404 });
+      return NextResponse.json({ code: API_ERROR_CODES.TASK_NOT_FOUND }, { status: 404 });
     }
 
     return NextResponse.json(
-      { message: "Task Delete satisfactory" },
+      { },
       { status: 200 },
     );
   } catch (err) {
     console.error("Internal Server error: ", err);
     return NextResponse.json(
-      { message: "Internal Server error" },
+      { code: API_ERROR_CODES.INTERNAL_ERROR },
       { status: 500 },
     );
   }

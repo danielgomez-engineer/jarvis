@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma/prisma";
 import { validToken } from "@/lib/auth/token";
+import { API_ERROR_CODES } from "@/lib/errors/codes";
 
 
 export async function GET(request: Request) {
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
     
     if(!user) {
         return NextResponse.json(
-            {message: "User not found"},
+            { code: API_ERROR_CODES.USER_NOT_FOUND },
             {status: 404}
         );
     }
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
     } catch (err) {
         console.error("Internal Server error: ", err);
         return NextResponse.json(
-            {message: "Internal server error"},
+            { code: API_ERROR_CODES.INTERNAL_ERROR},
             {status: 500}
         );
     }

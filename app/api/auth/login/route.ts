@@ -4,6 +4,8 @@ import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { getJwtSecret } from "@/lib/auth/token";
 import { loginSchema } from "@/lib/validations/auth";
+import { API_ERROR_CODES } from "@/lib/errors/codes";
+import { getFieldErrors } from "@/lib/validations/fieldErrors";
 
 export async function POST(request: Request) {
   try {
@@ -12,13 +14,13 @@ export async function POST(request: Request) {
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json({ code: "INVALID_JSON" }, { status: 400 });
+      return NextResponse.json({ code: API_ERROR_CODES.INVALID_JSON }, { status: 400 });
     }
 
     const validation = loginSchema.safeParse(body);
 
     if (!validation.success) {
-      return NextResponse.json({ code: "VALIDATION_ERROR" }, { status: 400 });
+      return NextResponse.json({ code: API_ERROR_CODES.VALIDATION_ERROR, fields: getFieldErrors(validation.error) }, { status: 400 });
     }
 
     const { email, password } = validation.data;
@@ -29,7 +31,7 @@ export async function POST(request: Request) {
     });
     if (!user) {
       return NextResponse.json(
-        { message: "Invalid credentials" },
+        { code: API_ERROR_CODES.INVALID_CREDENTIALS },
         { status: 401 },
       );
     }
@@ -38,7 +40,7 @@ export async function POST(request: Request) {
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
       return NextResponse.json(
-        { message: "Invalid credentials" },
+        { code: API_ERROR_CODES.INVALID_CREDENTIALS },
         { status: 401 },
       );
     }
@@ -53,7 +55,6 @@ export async function POST(request: Request) {
     // 6. RETORNAMOS  LA RESPUESTA EXITOSA
     const response = NextResponse.json(
       {
-        message: "Login succeful",
         user: {
           id: user.id,
           email: user.email,
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
   } catch (err) {
     console.error("Internal server error: ", err);
     return NextResponse.json(
-      { message: "Internal server error" },
+      { code: API_ERROR_CODES.INTERNAL_ERROR },
       { status: 500 },
     );
   }

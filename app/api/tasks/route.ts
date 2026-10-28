@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma/prisma";
 import { validToken } from "@/lib/auth/token";
 import { createTaskSchema } from "@/lib/validations/tasks";
+import { API_ERROR_CODES } from "@/lib/errors/codes";
+import { getFieldErrors } from "@/lib/validations/fieldErrors";
 
 //=========================================================GET TASK============================================================
 export async function GET(request: Request) {
@@ -25,9 +27,9 @@ export async function GET(request: Request) {
   } catch (err) {
     // This outer catch is for real, unexpected server errors
     // (e.g. the database is unreachable) — a genuine 500.
-    console.error("Internal server error: ", err);
+    console.error("Internal Server error", err);
     return NextResponse.json(
-      { message: "Internal server error" },
+      { code : API_ERROR_CODES.INTERNAL_ERROR },
       { status: 500 },
     );
   }
@@ -48,19 +50,19 @@ export async function POST(request: Request) {
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json({ code: "INVALID_JSON" }, { status: 400 });
+      return NextResponse.json({ code: API_ERROR_CODES.INVALID_JSON }, { status: 400 });
     }
 
     const validation = createTaskSchema.safeParse(body);
 
     if (!validation.success) {
-      return NextResponse.json({ code: "VALIDATION_ERROR" }, { status: 400 });
+      return NextResponse.json({ code: API_ERROR_CODES.VALIDATION_ERROR, fields: getFieldErrors(validation.error) }, { status: 400 });
     }
 
     const { title, description, completed } = validation.data;
 
     // 5. we put away the task
-    const newTask = await prisma.task.create({
+    await prisma.task.create({
       data: {
         title,
         description,
@@ -70,13 +72,13 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(
-      { message: "Task register satisfactory" },
+      {},
       { status: 201 },
     );
   } catch (err) {
     console.error("Internal Server error: ", err);
     return NextResponse.json(
-      { message: "Internal server error" },
+      { code: API_ERROR_CODES.INTERNAL_ERROR },
       { status: 500 },
     );
   }

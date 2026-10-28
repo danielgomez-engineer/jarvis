@@ -28,7 +28,7 @@ export default function RootLayout({
       <body>
         {children}
         {/* Notificaciones flotantes profesionales en toda la app */}
-        <Toaster position="top-center" richColors duration={1000} />
+        <Toaster position="top-center" richColors duration={2000} />
       </body>
     </html>
   );

@@ -3,13 +3,15 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { TrashIcon } from "@heroicons/react/24/outline";
 import {
   TASK_DESCRIPTION_MAX,
   TASK_TITLE_MAX,
   TASK_TITLE_MIN,
 } from "@/lib/validations/limits";
 import CharCounter from "@/components/CharCounter";
+import { translateError } from "@/lib/i18n/traslate";
+import { es } from "@/lib/i18n/es";
+import { ApiErrorCode } from "@/lib/errors/codes";
 
 // Shape of a task, matching what Prisma/the backend returns.
 // This gives type safety and autocomplete to "tasks" below.
@@ -34,10 +36,9 @@ export default function DashboardPage() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [error, setError] = useState("");
 
   // header user name
-  const [userName, setUserName] = useState("Cargando");
+  const [userName, setUserName] = useState(es.dashboard.user.nameLoading);
 
   const router = useRouter();
 
@@ -58,16 +59,32 @@ export default function DashboardPage() {
         return;
       }
 
-      const data = await res.json();
-
       if (!res.ok) {
-        toast.error(data.message || "Error loading your tasks");
+        let errorData: { code?: ApiErrorCode};
+
+        try {
+          errorData = await res.json();
+        } catch {
+          toast.error(translateError("UNEXPECTED_RESPONSE"));
+          return;
+        }
+
+        toast.error(translateError(errorData.code));
         return;
       }
 
-      setTasks(data);
+      let tasksData: Task[];
+
+      try {
+        tasksData = await res.json();
+      } catch {
+        toast.error(translateError("UNEXPECTED_RESPONSE"));
+        return;
+      }
+
+      setTasks(tasksData);
     } catch (err) {
-      toast.error("Error connecting to the server");
+      toast.error(translateError("NETWORK_ERROR"));
     } finally {
       setLoading(false);
     }
@@ -86,7 +103,6 @@ export default function DashboardPage() {
   // the "Cargando tareas..." message over the whole list.
   const handleCreateTask = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError("");
     setCreating(true);
 
     try {
@@ -96,14 +112,21 @@ export default function DashboardPage() {
         body: JSON.stringify({ title, description }),
       });
 
-      const data = await res.json();
-
       if (!res.ok) {
-        toast.error(data.message || "Error al crear tarea");
+        let errorData: { code?: ApiErrorCode};
+
+        try {
+          errorData = await res.json();
+        } catch {
+          toast.error(translateError("UNEXPECTED_RESPONSE"));
+          return;
+        }
+
+        toast.error(translateError(errorData.code));
         return;
       }
 
-      toast.success(data.message || "Tarea creada correctamente");
+      toast.success(es.dashboard.tasks.created);
 
       // Reset the form for the next task
       setTitle("");
@@ -112,7 +135,7 @@ export default function DashboardPage() {
       // Refresh the list so the new task shows up without a page reload
       await fetchTasks();
     } catch (err) {
-      toast.error("Error de conexión con el servidor");
+      toast.error(translateError("NETWORK_ERROR"));
     } finally {
       setCreating(false);
     }
@@ -122,7 +145,6 @@ export default function DashboardPage() {
 
   //update "completed" task handler
   const handleUpdateCompletedTask = async (id: number, completed: boolean) => {
-    setError("");
     setUpdating(true);
 
     try {
@@ -132,17 +154,24 @@ export default function DashboardPage() {
         body: JSON.stringify({ completed }),
       });
 
-      const data = await res.json();
-
       if (!res.ok) {
-        toast.error(data.message || "Error al cambiar estado");
+        let errorData: { code?: ApiErrorCode};
+
+        try {
+          errorData = await res.json();
+        } catch {
+          toast.error(translateError("UNEXPECTED_RESPONSE"));
+          return;
+        }
+
+        toast.error(translateError(errorData.code));
         return;
       }
 
-      toast.success(data.message);
+      toast.success(es.dashboard.tasks.updated);
       await fetchTasks();
     } catch (err) {
-      toast.error("Error de conexion con el servidor");
+      toast.error(translateError("NETWORK_ERROR"));
     } finally {
       setUpdating(false);
     }
@@ -150,28 +179,35 @@ export default function DashboardPage() {
 
   //===============================DELETE TASK========================================================================================
   const handleDeleteTask = async (id: number) => {
-    setError("");
     setDeleting(true);
     try {
       const res = await fetch(`/api/tasks/${id}`, {
         method: "DELETE",
       });
-      const data = await res.json();
       if (!res.ok) {
-        toast.error(data.message);
+        let errorData: { code?: ApiErrorCode};
+
+        try {
+          errorData = await res.json();
+        } catch {
+          toast.error(translateError("UNEXPECTED_RESPONSE"));
+          return;
+        }
+
+        toast.error(translateError(errorData.code));
         return;
       }
-      toast.success(data.message);
+      toast.success(es.dashboard.tasks.deleted);
       await fetchTasks();
     } catch (err) {
-      toast.error("Error de conexion con el servidor");
+      toast.error(translateError("NETWORK_ERROR"));
     } finally {
       setDeleting(false);
     }
   };
   //==========================USER NAME==============================================================
   const fetchUserName = async () => {
-    setError("");
+
     try {
       const res = await fetch("/api/auth/me", {
         method: "GET",
@@ -182,41 +218,65 @@ export default function DashboardPage() {
         return;
       }
 
-      const data = await res.json();
       if (!res.ok) {
-        toast.error(data.message);
+        let errorData: { code?: ApiErrorCode};
+
+        try {
+          errorData = await res.json();
+        } catch {
+          toast.error(translateError("UNEXPECTED_RESPONSE"));
+          return;
+        }
+
+        toast.error(translateError(errorData.code));
         return;
       }
 
-      setUserName(data.name || "Usuario");
-    } catch (err) {
-      toast.error("Error connecting to the server");
+      let userData: { name?: string | null };
+
+      try {
+        userData = await res.json();
+      } catch {
+        toast.error(translateError("UNEXPECTED_RESPONSE"));
+        return;
+      }
+
+      setUserName(userData.name || es.dashboard.user.nameFallback);
+    } catch {
+      toast.error(translateError("NETWORK_ERROR"));
     }
   };
   //==========================LOGOUT==============================================================
-  const logout = async () => {
-    setError("");
-    setLoggingOut(true);
-    try {
-      const res = await fetch("/api/auth/logout", {
-        method: "POST",
-      });
+const logout = async () => {
+  setLoggingOut(true);
 
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.message);
+  try {
+    const res = await fetch("/api/auth/logout", {
+      method: "POST",
+    });
+
+    if (!res.ok) {
+      let errorData: { code?: ApiErrorCode};
+
+      try {
+        errorData = await res.json();
+      } catch {
+        toast.error(translateError("UNEXPECTED_RESPONSE"));
         return;
       }
 
-      if (res.status === 200) {
-        router.push("/login");
-      }
-    } catch (err) {
-      toast.error("Error Logout ");
-    } finally {
-      setLoggingOut(false);
+      toast.error(translateError(errorData.code));
+      return;
     }
-  };
+
+    toast.success(es.auth.logout.success);
+    router.push("/login");
+  } catch {
+    toast.error(translateError("NETWORK_ERROR"));
+  } finally {
+    setLoggingOut(false);
+  }
+};
   //============================================================================================================================
 
   return (
@@ -232,7 +292,7 @@ export default function DashboardPage() {
             disabled={loggingOut}
             onClick={() => logout()}
           >
-            {loggingOut ? "Cerrando sesión..." : "Cerrar sesión"}
+            {loggingOut ? es.auth.logout.buttonLoading : es.auth.logout.button }
           </button>
         </div>
       </div>
@@ -247,17 +307,17 @@ export default function DashboardPage() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-500 opacity-75"></span>
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-600"></span>
               </span>
-              Centro de Mando • Tareas
+              {es.dashboard.tasks.badge}
             </span>
           </div>
 
           {/* TÍTULO Y SUBTÍTULO */}
           <div className="space-y-1.5 text-center">
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-gray-900">
-              Panel de <span className="text-cyan-600">Tareas</span>
+              {es.dashboard.tasks.headingStart} <span className="text-cyan-600">{es.dashboard.tasks.headingAccent}</span>
             </h1>
             <p className="text-sm text-gray-500">
-              Gestiona y supervisa tus objetivos diarios
+              {es.dashboard.tasks.subtitle}
             </p>
           </div>
         </div>
@@ -267,14 +327,8 @@ export default function DashboardPage() {
           <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-500 via-sky-400 to-cyan-600" />
 
           <h2 className="text-sm font-semibold text-gray-700 mb-4">
-            Nueva tarea
+            {es.dashboard.tasks.formTitle}
           </h2>
-
-          {error && (
-            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-center text-sm font-medium text-red-600">
-              {error}
-            </div>
-          )}
 
           <form onSubmit={handleCreateTask} className="space-y-4">
             <div className="space-y-1.5">
@@ -282,13 +336,13 @@ export default function DashboardPage() {
                 htmlFor="title"
                 className="flex items-center justify-between text-xs font-medium text-gray-700"
               >
-                <span>Título</span>
+                <span>{es.dashboard.tasks.titleLabel}</span>
                 {<CharCounter length={title.length} max={TASK_TITLE_MAX} />}
               </label>
               <input
                 id="title"
                 type="text"
-                placeholder="Tarea..."
+                placeholder={es.dashboard.tasks.titlePlaceholder}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
@@ -303,7 +357,7 @@ export default function DashboardPage() {
                 htmlFor="description"
                 className="flex items-center justify-between text-xs font-medium text-gray-700"
               >
-                <span>Descripción</span>
+                <span>{es.dashboard.tasks.descriptionLabel}</span>
                 {
                   <CharCounter
                     length={description.length}
@@ -314,7 +368,7 @@ export default function DashboardPage() {
               <input
                 id="description"
                 type="text"
-                placeholder="Esta tarea la voy a hacer..."
+                placeholder={es.dashboard.tasks.descriptionPlaceholder}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 maxLength={TASK_DESCRIPTION_MAX}
@@ -327,21 +381,21 @@ export default function DashboardPage() {
               disabled={creating}
               className="cursor-pointer w-full sm:w-auto rounded-xl bg-gradient-to-b from-cyan-500 to-cyan-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-cyan-500/25 transition-all hover:from-cyan-400 hover:to-cyan-600 active:scale-[0.99] disabled:opacity-50"
             >
-              {creating ? "Creando..." : "Agregar Tarea"}
+              {creating ? es.dashboard.tasks.submitting : es.dashboard.tasks.submit}
             </button>
           </form>
         </div>
 
         {/* LISTA DE TAREAS */}
         <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-gray-700">Mis tareas</h2>
+          <h2 className="text-sm font-semibold text-gray-700">{es.dashboard.tasks.listTitle}</h2>
 
           {loading && (
-            <p className="text-sm text-gray-500">Cargando tareas...</p>
+            <p className="text-sm text-gray-500">{es.dashboard.tasks.listLoading}</p>
           )}
 
           {!loading && tasks.length === 0 && (
-            <p className="text-sm text-gray-500">No tienes tareas todavía.</p>
+            <p className="text-sm text-gray-500">{es.dashboard.tasks.listEmpty}</p>
           )}
 
           <ul className="space-y-3">
@@ -366,7 +420,7 @@ export default function DashboardPage() {
                         }
                         className="cursor-pointer inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200"
                       >
-                        Completada
+                        {es.dashboard.tasks.statusCompleted}
                       </button>
                     ) : (
                       <button
@@ -377,7 +431,7 @@ export default function DashboardPage() {
                         }
                         className="cursor-pointer inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-200"
                       >
-                        Pendiente
+                        {es.dashboard.tasks.statusPending}
                       </button>
                     )}
 

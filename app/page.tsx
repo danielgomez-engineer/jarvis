@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { es } from "@/lib/i18n/es";
 
 export default function Home() {
   return (
@@ -13,17 +14,18 @@ export default function Home() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-500 opacity-75"></span>
               <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-600"></span>
             </span>
-            Jarvis v1.0 • Sistema Activo
+            {es.home.badge}
           </span>
         </div>
 
         {/* TÍTULO Y DESCRIPCIÓN */}
         <div className="space-y-3">
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-gray-900">
-            Bienvenido a <span className="text-cyan-600">Jarvis</span>
+            {es.home.headingStart}{" "}
+            <span className="text-cyan-600">{es.home.headingAccent}</span>
           </h1>
           <p className="text-sm sm:text-base text-gray-500 max-w-sm mx-auto leading-relaxed">
-            Tu centro de mando inteligente para organizar, priorizar y completar tareas con máxima eficiencia.
+            {es.home.subtitle}
           </p>
         </div>
 
@@ -33,13 +35,13 @@ export default function Home() {
             href="/login"
             className="w-full sm:w-auto flex-1 inline-flex items-center justify-center rounded-xl bg-gradient-to-b from-cyan-500 to-cyan-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-cyan-500/25 transition-all hover:from-cyan-400 hover:to-cyan-600 active:scale-[0.99]"
           >
-            Iniciar Sesión
+            {es.home.loginButton}
           </Link>
           <Link
             href="/register"
             className="w-full sm:w-auto flex-1 inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-6 py-3 text-sm font-semibold text-gray-700 shadow-sm transition-all hover:border-cyan-300 hover:bg-cyan-50/40 hover:text-cyan-700 active:scale-[0.99]"
           >
-            Crear Cuenta
+            {es.home.registerButton}
           </Link>
         </div>
 
