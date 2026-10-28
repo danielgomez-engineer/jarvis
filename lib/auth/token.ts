@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { API_ERROR_CODES } from "../errors/codes";
 
 
 //=========================================================verify JWT_SECRET============================================================
@@ -40,7 +41,7 @@ export async function validToken(): Promise<NextResponse | { userId: number }> {
 
   if (!token) {
     return NextResponse.json(
-      { message: "Unauthorized: No token provided" },
+      { code: API_ERROR_CODES.UNAUTHORIZED },
       { status: 401 },
     );
   }
@@ -48,7 +49,7 @@ export async function validToken(): Promise<NextResponse | { userId: number }> {
   const decoded = verifyToken(token);
   if (!decoded) {
     return NextResponse.json(
-      { message: "Unauthorized: Invalid or expired token" },
+      { code: API_ERROR_CODES.UNAUTHORIZED },
       { status: 401 },
     );
   }

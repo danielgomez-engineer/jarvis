@@ -3,6 +3,8 @@ import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { registerSchema } from "@/lib/validations/auth";
+import { API_ERROR_CODES } from "@/lib/errors/codes";
+import { getFieldErrors } from "@/lib/validations/fieldErrors";
 
 export async function POST(request: Request) {
   try {
@@ -11,13 +13,13 @@ export async function POST(request: Request) {
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json({ code: "INVALID_JSON" }, { status: 400 });
+      return NextResponse.json({ code: API_ERROR_CODES.INVALID_JSON }, { status: 400 });
     }
 
     const validation = registerSchema.safeParse(body);
 
     if (!validation.success) {
-      return NextResponse.json({ code: "VALIDATION_ERROR" }, { status: 400 });
+      return NextResponse.json({ code: API_ERROR_CODES.VALIDATION_ERROR, fields: getFieldErrors(validation.error) }, { status: 400 });
     }
 
     const { email, password, name } = validation.data;
@@ -28,7 +30,7 @@ export async function POST(request: Request) {
     });
     if (existUser) {
       return NextResponse.json(
-        { message: "User already exists" },
+        { code: API_ERROR_CODES.USER_ALREADY_EXISTS },
         { status: 409 },
       );
     }
@@ -37,7 +39,7 @@ export async function POST(request: Request) {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // 5. GUARDAMOS EL USUARIO EN POSTGRES USANDO PRISMA
-    const newUser = await prisma.user.create({
+     await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
@@ -46,7 +48,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(
-      { message: "User register satisfactory" },
+      {  },
       { status: 201 },
     );
   } catch (err) {
@@ -55,13 +57,13 @@ export async function POST(request: Request) {
       err.code === "P2002"
     ) {
       return NextResponse.json(
-        { message: "User already exists" },
+        { code: API_ERROR_CODES.USER_ALREADY_EXISTS },
         { status: 409 },
       );
     }
     console.error("Internal Server error: ", err);
     return NextResponse.json(
-      { message: "Internal server error" },
+      { code: API_ERROR_CODES.INTERNAL_ERROR },
       { status: 500 },
     );
   }
