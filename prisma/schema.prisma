@@ -10,11 +10,13 @@ datasource db {
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique @db.VarChar(254)
-  password  String   
+  password  String
   name      String?  @db.VarChar(60)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   tasks     Task[]
+  // JV-1: a user owns their areas
+  areas     Area[]
 }
 
 model Task {
@@ -27,4 +29,20 @@ model Task {
 
   userId Int
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// JV-1: Area model (big, permanent work fronts: Inglés, Jarvis, Nexus...)
+model Area {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(40)
+  color     Int      @default(1) // 1–6 → tokens area-1…area-6 (ESTILOS §2.1)
+  position  Int      @default(0) // manual order in the area selector
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Same name allowed for different users, never twice for the same user
+  @@unique([userId, name])
 }
