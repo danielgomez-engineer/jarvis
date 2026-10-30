@@ -29,6 +29,12 @@ model Task {
 
   userId Int
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // JV-1: every task belongs to an area; an area that still has tasks can't be deleted
+  areaId Int
+  area   Area @relation(fields: [areaId], references: [id], onDelete: Restrict)
+
+  @@index([areaId])
 }
 
 // JV-1: Area model (big, permanent work fronts: Inglés, Jarvis, Nexus...)
@@ -41,7 +47,8 @@ model Area {
   updatedAt DateTime @updatedAt
 
   userId Int
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks  Task[]
 
   // Same name allowed for different users, never twice for the same user
   @@unique([userId, name])
