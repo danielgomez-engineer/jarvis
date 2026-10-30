@@ -61,6 +61,15 @@ export async function POST(request: Request) {
 
     const { title, description, completed } = validation.data;
 
+    // JV-1: until the board lets the person pick an area (U2.3.2), new tasks go to
+    // the user's "General" area. upsert = reuse it if it exists, create it if not
+    // (new users have no areas yet). Same name as the link_tasks_to_areas migration.
+    const generalArea = await prisma.area.upsert({
+      where: { userId_name: { userId: authResult.userId, name: "General" } },
+      update: {},
+      create: { userId: authResult.userId, name: "General" },
+    });
+
     // 5. we put away the task
     await prisma.task.create({
       data: {
@@ -68,6 +77,7 @@ export async function POST(request: Request) {
         description,
         completed,
         userId: authResult.userId,
+        areaId: generalArea.id,
       },
     });
 
