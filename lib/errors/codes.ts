@@ -9,6 +9,8 @@ export const API_ERROR_CODES = {
   TASK_NOT_FOUND: "TASK_NOT_FOUND",
   USER_NOT_FOUND: "USER_NOT_FOUND",
   INTERNAL_ERROR: "INTERNAL_ERROR",
+  // JV-1: areas
+  AREA_ALREADY_EXISTS: "AREA_ALREADY_EXISTS",
 } as const;
 
 export type ApiErrorCode =

@@ -107,6 +107,7 @@ export const es = {
     UNAUTHORIZED: "Tu sesión expiró. Inicia sesión de nuevo",
     INVALID_TASK_ID: "No pudimos identificar esa tarea",
     TASK_NOT_FOUND: "No encontramos esa tarea. Puede que ya se haya eliminado",
+    AREA_ALREADY_EXISTS: "Ya tienes un área con ese nombre",
     USER_NOT_FOUND: "No encontramos tu cuenta",
     INTERNAL_ERROR: "Algo falló en el servidor. Intenta de nuevo en unos segundos",
 
