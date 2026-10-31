@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma/prisma";
 import { validToken } from "@/lib/auth/token";
-import { updatedCompletedTaskSchema } from "@/lib/validations/tasks";
+import { updateTaskSchema } from "@/lib/validations/tasks";
 import { API_ERROR_CODES } from "@/lib/errors/codes";
 import { getFieldErrors } from "@/lib/validations/fieldErrors";
+import { DB_INT_MAX } from "@/lib/validations/limits";
+import { TASK_FIELDS, nextPositionInCell, toDateOnly, userOwnsArea } from "@/lib/tasks/cells";
 
-//===================================================UPDATE COMPLETED TASK=================================================
+//===================================================JV-1: UPDATE TASK=================================================
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -14,7 +16,7 @@ export async function PATCH(
     const { id } = await params;
     const taskId = Number(id);
 
-    if (!Number.isInteger(taskId) || taskId <= 0) {
+    if (!Number.isInteger(taskId) || taskId <= 0 || taskId > DB_INT_MAX) {
       return NextResponse.json({ code: API_ERROR_CODES.INVALID_TASK_ID }, { status: 400 });
     }
 
@@ -32,34 +34,46 @@ export async function PATCH(
       return NextResponse.json({ code: API_ERROR_CODES.INVALID_JSON }, { status: 400 });
     }
 
-    const validation = updatedCompletedTaskSchema.safeParse(body);
+    const validation = updateTaskSchema.safeParse(body);
 
     if (!validation.success) {
       return NextResponse.json({ code: API_ERROR_CODES.VALIDATION_ERROR, fields: getFieldErrors(validation.error) }, { status: 400 });
     }
 
-    const { completed } = validation.data;
+    const { completed, urgent, areaId, dueDate, position } = validation.data;
 
-    //7. we update away the task
-    const taskUpdate = await prisma.task.updateMany({
-      where: {
-        id: taskId,
-        userId: authResult.userId,
-      },
-      data: {
-        completed,
-      },
+    // JV-1: read the task first (only if it's the user's) to know its current cell
+    const task = await prisma.task.findFirst({
+      where: { id: taskId, userId: authResult.userId },
+      select: { areaId: true, dueDate: true },
     });
 
-    // Check if any row was affected
-    if (taskUpdate.count === 0) {
+    if (!task) {
       return NextResponse.json({ code: API_ERROR_CODES.TASK_NOT_FOUND }, { status: 404 });
     }
 
-    return NextResponse.json(
-      {  },
-      { status: 200 },
-    );
+    if (areaId !== undefined && !(await userOwnsArea(authResult.userId, areaId))) {
+      return NextResponse.json({ code: API_ERROR_CODES.AREA_NOT_FOUND }, { status: 404 });
+    }
+
+    // undefined = don't touch the date; null = remove it
+    const dueDay = dueDate === undefined ? undefined : dueDate === null ? null : toDateOnly(dueDate);
+
+    const newAreaId = areaId ?? task.areaId;
+    const newDueDay = dueDay === undefined ? task.dueDate : dueDay;
+    const changesCell = newAreaId !== task.areaId || newDueDay?.getTime() !== task.dueDate?.getTime();
+
+    // JV-1: moving to another cell without a position → last in the new cell
+    const newPosition = position ?? (changesCell ? await nextPositionInCell(newAreaId, newDueDay) : undefined);
+
+    //7. we update away the task (Prisma ignores undefined fields)
+    const updatedTask = await prisma.task.update({
+      where: { id: taskId, userId: authResult.userId },
+      data: { completed, urgent, areaId, dueDate: dueDay, position: newPosition },
+      select: TASK_FIELDS,
+    });
+
+    return NextResponse.json(updatedTask, { status: 200 });
   } catch (err) {
     console.error("Internal server error: ", err);
     return NextResponse.json(
@@ -79,7 +93,7 @@ export async function DELETE(
     const { id } = await params;
     const taskId = Number(id);
 
-    if (!Number.isInteger(taskId) || taskId <= 0) {
+    if (!Number.isInteger(taskId) || taskId <= 0 || taskId > DB_INT_MAX) {
       return NextResponse.json({ code: API_ERROR_CODES.INVALID_TASK_ID }, { status: 400 });
     }
     const authResult = await validToken();

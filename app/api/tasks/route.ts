@@ -4,6 +4,7 @@ import { validToken } from "@/lib/auth/token";
 import { createTaskSchema } from "@/lib/validations/tasks";
 import { API_ERROR_CODES } from "@/lib/errors/codes";
 import { getFieldErrors } from "@/lib/validations/fieldErrors";
+import { TASK_FIELDS, nextPositionInCell, toDateOnly, userOwnsArea } from "@/lib/tasks/cells";
 
 //=========================================================GET TASK============================================================
 export async function GET(request: Request) {
@@ -59,32 +60,45 @@ export async function POST(request: Request) {
       return NextResponse.json({ code: API_ERROR_CODES.VALIDATION_ERROR, fields: getFieldErrors(validation.error) }, { status: 400 });
     }
 
-    const { title, description, completed } = validation.data;
+    const { title, description, completed, areaId, dueDate, urgent } = validation.data;
 
-    // JV-1: until the board lets the person pick an area (U2.3.2), new tasks go to
-    // the user's "General" area. upsert = reuse it if it exists, create it if not
-    // (new users have no areas yet). Same name as the link_tasks_to_areas migration.
-    const generalArea = await prisma.area.upsert({
-      where: { userId_name: { userId: authResult.userId, name: "General" } },
-      update: {},
-      create: { userId: authResult.userId, name: "General" },
-    });
+    // JV-1: the area comes from the body, so check it's the user's (404 if not, like tasks)
+    let targetAreaId: number;
 
-    // 5. we put away the task
-    await prisma.task.create({
+    if (areaId !== undefined) {
+      if (!(await userOwnsArea(authResult.userId, areaId))) {
+        return NextResponse.json({ code: API_ERROR_CODES.AREA_NOT_FOUND }, { status: 404 });
+      }
+      targetAreaId = areaId;
+    } else {
+      // JV-1: TEMPORARY. The old dashboard doesn't send areaId, so its tasks go to "General".
+      // Remove in U2.4.1, when the board always sends areaId (then make it required).
+      const generalArea = await prisma.area.upsert({
+        where: { userId_name: { userId: authResult.userId, name: "General" } },
+        update: {},
+        create: { userId: authResult.userId, name: "General" },
+      });
+      targetAreaId = generalArea.id;
+    }
+
+    const dueDay = dueDate ? toDateOnly(dueDate) : null;
+
+    // 5. we put away the task, last in its cell
+    const task = await prisma.task.create({
       data: {
         title,
         description,
         completed,
+        urgent,
+        dueDate: dueDay,
+        position: await nextPositionInCell(targetAreaId, dueDay),
         userId: authResult.userId,
-        areaId: generalArea.id,
+        areaId: targetAreaId,
       },
+      select: TASK_FIELDS,
     });
 
-    return NextResponse.json(
-      {},
-      { status: 201 },
-    );
+    return NextResponse.json(task, { status: 201 });
   } catch (err) {
     console.error("Internal Server error: ", err);
     return NextResponse.json(
