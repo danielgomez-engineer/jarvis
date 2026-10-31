@@ -8,3 +8,11 @@ export const createAreaSchema = z.object({
 });
 
 export type CreateAreaInput = z.infer<typeof createAreaSchema>;
+
+// JV-1: reorder areas. "ids" is the user's full list of area ids in the new order.
+// Ownership, duplicates and completeness are checked in the route (they need the DB).
+export const reorderAreasSchema = z.object({
+  ids: z.array(z.number().int().positive()).min(1),
+});
+
+export type ReorderAreasInput = z.infer<typeof reorderAreasSchema>;
