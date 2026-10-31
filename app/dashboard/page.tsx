@@ -1,471 +1,280 @@
 "use client"; // Required because we use hooks (useState, useEffect, useRouter)
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import {
-  TASK_DESCRIPTION_MAX,
-  TASK_TITLE_MAX,
-  TASK_TITLE_MIN,
-} from "@/lib/validations/limits";
-import CharCounter from "@/components/CharCounter";
-import { translateError } from "@/lib/i18n/traslate";
 import { es } from "@/lib/i18n/es";
-import { ApiErrorCode } from "@/lib/errors/codes";
+import { translateError, translateText } from "@/lib/i18n/traslate";
+import { ApiResult, apiRequest } from "@/lib/api/request";
+import { addDays, startOfWeek, today } from "@/lib/dates/week";
+import AreaSelector from "@/components/board/AreaSelector";
+import BoardGrid from "@/components/board/BoardGrid";
+import NewTaskForm from "@/components/board/NewTaskForm";
+import WeekNav from "@/components/board/WeekNav";
+import { Area, Task } from "@/components/board/types";
 
-// Shape of a task, matching what Prisma/the backend returns.
-// This gives type safety and autocomplete to "tasks" below.
-type Task = {
-  id: number;
-  title: string;
-  description: string | null;
-  completed: boolean;
-  userId: number;
-  createdAt: string;
-  updatedAt: string;
-};
+type BoardStatus = "loading" | "ready" | "error";
+type ApiFailure = Extract<ApiResult<unknown>, { ok: false }>;
 
+const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+
+// Asks for the areas and that week's tasks at the same time. Doesn't touch the screen.
+async function fetchWeek(start: string) {
+  const [areasResult, tasksResult] = await Promise.all([
+    apiRequest<Area[]>("/api/areas"),
+    apiRequest<Task[]>(`/api/tasks?weekStart=${start}`),
+  ]);
+  return { areasResult, tasksResult };
+}
+
+//=====JV-1: WEEKLY BOARD (replaces the old task list)=====
 export default function DashboardPage() {
-  // Starts as an empty array (not undefined) so .map() never breaks,
-  // even before the server response arrives.
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [updating, setUpdating] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-
-  // header user name
-  const [userName, setUserName] = useState(es.dashboard.user.nameLoading);
-
   const router = useRouter();
 
-  // Declared at component level (not inside useEffect) so both the
-  // initial load AND handleCreateTask can call it to refresh the list.
-  const fetchTasks = async () => {
-    try {
-      // No body, no manual auth header: the httpOnly "token" cookie
-      // is sent automatically by the browser on same-origin requests.
-      const res = await fetch("/api/tasks", {
-        method: "GET",
-      });
+  // null until the first load: "today" depends on the person's clock,
+  // so it's read in the browser and never while the page is prerendered
+  const [weekStart, setWeekStart] = useState<string | null>(null);
+  const [areas, setAreas] = useState<Area[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [status, setStatus] = useState<BoardStatus>("loading");
+  // null = every area is visible
+  const [selectedAreaId, setSelectedAreaId] = useState<number | null>(null);
+  const [newTaskOpen, setNewTaskOpen] = useState(false);
+  // Area picked with a lane's "+"; null = use the selected area or the first one
+  const [newTaskAreaId, setNewTaskAreaId] = useState<number | null>(null);
+  const [userName, setUserName] = useState(es.dashboard.user.nameLoading);
+  const [loggingOut, setLoggingOut] = useState(false);
 
-      // If the session isn't valid, send the user back to login
-      // instead of showing them an empty dashboard.
-      if (res.status === 401) {
-        router.push("/login");
-        return;
-      }
+  // Fast ‹ › clicks can answer out of order: only the latest request may update the screen
+  const latestLoad = useRef(0);
+  // The week asked for last, even if it hasn't arrived yet (so two quick clicks move two weeks)
+  const requestedWeek = useRef<string | null>(null);
 
-      if (!res.ok) {
-        let errorData: { code?: ApiErrorCode};
+  // Toast with the API error; a 401 anywhere means the session expired → login
+  const showError = useCallback(
+    (failure: ApiFailure) => {
+      toast.error(translateError(failure.code));
+      if (failure.status === 401) router.push("/login");
+    },
+    [router],
+  );
 
-        try {
-          errorData = await res.json();
-        } catch {
-          toast.error(translateError("UNEXPECTED_RESPONSE"));
+  //==========================LOAD A WEEK==============================================================
+  // The screen is updated in .then(), when the answer arrives (React's pattern for fetching from an effect)
+  const loadWeek = useCallback(
+    (start: string) => {
+      const loadId = ++latestLoad.current;
+      requestedWeek.current = start;
+
+      fetchWeek(start).then(({ areasResult, tasksResult }) => {
+        if (loadId !== latestLoad.current) return;
+
+        if (!areasResult.ok || !tasksResult.ok) {
+          showError(!areasResult.ok ? areasResult : (tasksResult as ApiFailure));
+          requestedWeek.current = null;
+          // First load failed → error screen. A later week failed → keep showing the current one.
+          setStatus((current) => (current === "ready" ? current : "error"));
           return;
         }
 
-        toast.error(translateError(errorData.code));
-        return;
-      }
-
-      let tasksData: Task[];
-
-      try {
-        tasksData = await res.json();
-      } catch {
-        toast.error(translateError("UNEXPECTED_RESPONSE"));
-        return;
-      }
-
-      setTasks(tasksData);
-    } catch (err) {
-      toast.error(translateError("NETWORK_ERROR"));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // useEffect with an empty dependency array [] runs exactly ONCE,
-  // right after this component mounts — i.e. "when the page loads, do this".
-  useEffect(() => {
-    fetchTasks();
-    fetchUserName();
-  }, [router]);
-
-  //=================================================POST TASK======================================================================
-  // Create task handler — separate "creating" loading state from the
-  // initial page "loading" state, so submitting the form doesn't flash
-  // the "Cargando tareas..." message over the whole list.
-  const handleCreateTask = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setCreating(true);
-
-    try {
-      const res = await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ title, description }),
+        // Week, areas and tasks change together, so the screen never mixes two weeks
+        setWeekStart(start);
+        setAreas(areasResult.data);
+        setTasks(tasksResult.data);
+        setStatus("ready");
       });
+    },
+    [showError],
+  );
 
-      if (!res.ok) {
-        let errorData: { code?: ApiErrorCode};
-
-        try {
-          errorData = await res.json();
-        } catch {
-          toast.error(translateError("UNEXPECTED_RESPONSE"));
-          return;
-        }
-
-        toast.error(translateError(errorData.code));
+  const loadUserName = useCallback(() => {
+    apiRequest<{ name?: string | null }>("/api/auth/me").then((result) => {
+      if (!result.ok) {
+        showError(result);
         return;
       }
 
-      toast.success(es.dashboard.tasks.created);
-
-      // Reset the form for the next task
-      setTitle("");
-      setDescription("");
-
-      // Refresh the list so the new task shows up without a page reload
-      await fetchTasks();
-    } catch (err) {
-      toast.error(translateError("NETWORK_ERROR"));
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  //===============================UPDATE COMPLETED TASK========================================================================================
-
-  //update "completed" task handler
-  const handleUpdateCompletedTask = async (id: number, completed: boolean) => {
-    setUpdating(true);
-
-    try {
-      const res = await fetch(`/api/tasks/${id}`, {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ completed }),
-      });
-
-      if (!res.ok) {
-        let errorData: { code?: ApiErrorCode};
-
-        try {
-          errorData = await res.json();
-        } catch {
-          toast.error(translateError("UNEXPECTED_RESPONSE"));
-          return;
-        }
-
-        toast.error(translateError(errorData.code));
-        return;
-      }
-
-      toast.success(es.dashboard.tasks.updated);
-      await fetchTasks();
-    } catch (err) {
-      toast.error(translateError("NETWORK_ERROR"));
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  //===============================DELETE TASK========================================================================================
-  const handleDeleteTask = async (id: number) => {
-    setDeleting(true);
-    try {
-      const res = await fetch(`/api/tasks/${id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        let errorData: { code?: ApiErrorCode};
-
-        try {
-          errorData = await res.json();
-        } catch {
-          toast.error(translateError("UNEXPECTED_RESPONSE"));
-          return;
-        }
-
-        toast.error(translateError(errorData.code));
-        return;
-      }
-      toast.success(es.dashboard.tasks.deleted);
-      await fetchTasks();
-    } catch (err) {
-      toast.error(translateError("NETWORK_ERROR"));
-    } finally {
-      setDeleting(false);
-    }
-  };
-  //==========================USER NAME==============================================================
-  const fetchUserName = async () => {
-
-    try {
-      const res = await fetch("/api/auth/me", {
-        method: "GET",
-      });
-
-      if (res.status === 401) {
-        router.push("/login");
-        return;
-      }
-
-      if (!res.ok) {
-        let errorData: { code?: ApiErrorCode};
-
-        try {
-          errorData = await res.json();
-        } catch {
-          toast.error(translateError("UNEXPECTED_RESPONSE"));
-          return;
-        }
-
-        toast.error(translateError(errorData.code));
-        return;
-      }
-
-      let userData: { name?: string | null };
-
-      try {
-        userData = await res.json();
-      } catch {
-        toast.error(translateError("UNEXPECTED_RESPONSE"));
-        return;
-      }
-
-      setUserName(userData.name || es.dashboard.user.nameFallback);
-    } catch {
-      toast.error(translateError("NETWORK_ERROR"));
-    }
-  };
-  //==========================LOGOUT==============================================================
-const logout = async () => {
-  setLoggingOut(true);
-
-  try {
-    const res = await fetch("/api/auth/logout", {
-      method: "POST",
+      setUserName(result.data.name || es.dashboard.user.nameFallback);
     });
+  }, [showError]);
 
-    if (!res.ok) {
-      let errorData: { code?: ApiErrorCode};
+  useEffect(() => {
+    loadWeek(startOfWeek(today()));
+    loadUserName();
+  }, [loadWeek, loadUserName]);
 
-      try {
-        errorData = await res.json();
-      } catch {
-        toast.error(translateError("UNEXPECTED_RESPONSE"));
-        return;
+  const moveWeeks = useCallback(
+    (amount: number) => {
+      const from = requestedWeek.current ?? weekStart;
+      if (from) loadWeek(addDays(from, amount * 7));
+    },
+    [loadWeek, weekStart],
+  );
+
+  const retry = () => {
+    setStatus("loading");
+    loadWeek(startOfWeek(today()));
+  };
+
+  //==========================KEYBOARD (spec 5): N = new task, ←/→ = week==============================================================
+  useEffect(() => {
+    if (status !== "ready") return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const typing = (e.target as HTMLElement).closest("input, textarea, select, [contenteditable='true']");
+      if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
+
+      if (e.key === "n" || e.key === "N") {
+        // preventDefault so the "n" isn't typed into the field that opens
+        e.preventDefault();
+        setNewTaskOpen(true);
+      } else if (e.key === "ArrowLeft") {
+        moveWeeks(-1);
+      } else if (e.key === "ArrowRight") {
+        moveWeeks(1);
       }
+    };
 
-      toast.error(translateError(errorData.code));
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [status, moveWeeks]);
+
+  //==========================CREATE AREA / TASK==============================================================
+  // New tasks go to the lane whose "+" was pressed, else the selected area, else the first one (spec 2.3)
+  const targetArea =
+    areas.find((area) => area.id === newTaskAreaId) ?? areas.find((area) => area.id === selectedAreaId) ?? areas[0] ?? null;
+
+  const openNewTaskIn = (areaId: number) => {
+    setNewTaskAreaId(areaId);
+    setNewTaskOpen(true);
+  };
+
+  const closeNewTask = () => {
+    setNewTaskOpen(false);
+    setNewTaskAreaId(null);
+  };
+
+  const handleCreateArea = async (name: string): Promise<boolean> => {
+    const result = await apiRequest<Area>("/api/areas", { method: "POST", body: { name } });
+
+    if (!result.ok) {
+      showError(result);
+      return false;
+    }
+
+    setAreas((current) => [...current, result.data]);
+    toast.success(translateText(es.dashboard.areas.created, { name: result.data.name }));
+    return true;
+  };
+
+  const handleCreateTask = async (title: string): Promise<boolean> => {
+    if (!targetArea) return false;
+
+    const result = await apiRequest<Task>("/api/tasks", { method: "POST", body: { title, areaId: targetArea.id } });
+
+    if (!result.ok) {
+      showError(result);
+      return false;
+    }
+
+    setTasks((current) => [...current, result.data]);
+    toast.success(translateText(es.dashboard.newTask.created, { area: targetArea.name }));
+    return true;
+  };
+
+  //==========================LOGOUT==============================================================
+  const logout = async () => {
+    setLoggingOut(true);
+    const result = await apiRequest("/api/auth/logout", { method: "POST" });
+    setLoggingOut(false);
+
+    if (!result.ok) {
+      showError(result);
       return;
     }
 
     toast.success(es.auth.logout.success);
     router.push("/login");
-  } catch {
-    toast.error(translateError("NETWORK_ERROR"));
-  } finally {
-    setLoggingOut(false);
-  }
-};
+  };
+
   //============================================================================================================================
+  const currentDay = today();
+  const visibleAreas = selectedAreaId === null ? areas : areas.filter((area) => area.id === selectedAreaId);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
-      <div className="border-b border-b-gray-200 bg-white px-4 py-3 sm:px-8">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <h2 className="inline-flex items-center rounded-full border border-cyan-200/60 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700">
-            {userName}
-          </h2>
-          <button
-            className="cursor-pointer rounded-lg bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50"
-            type="button"
-            disabled={loggingOut}
-            onClick={() => logout()}
-          >
-            {loggingOut ? es.auth.logout.buttonLoading : es.auth.logout.button }
-          </button>
-        </div>
-      </div>
-
-      <div className="max-w-4xl mx-auto space-y-6 mt-4 sm:mt-6">
-        {/* INSIGNIA + TÍTULO: grupo con espacio interno reducido, van juntos */}
-        <div className="space-y-3">
-          {/* INSIGNIA SUPERIOR (ADN Jarvis) */}
-          <div className="flex justify-center">
-            <span className="inline-flex items-center gap-2 px-3 py-1 text-[11px] font-mono font-semibold uppercase tracking-wider rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200/60">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-500 opacity-75"></span>
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-600"></span>
-              </span>
-              {es.dashboard.tasks.badge}
-            </span>
-          </div>
-
-          {/* TÍTULO Y SUBTÍTULO */}
-          <div className="space-y-1.5 text-center">
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-gray-900">
-              {es.dashboard.tasks.headingStart} <span className="text-cyan-600">{es.dashboard.tasks.headingAccent}</span>
-            </h1>
-            <p className="text-sm text-gray-500">
-              {es.dashboard.tasks.subtitle}
-            </p>
-          </div>
-        </div>
-
-        {/* TARJETA DE CREACIÓN RÁPIDA */}
-        <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 shadow-xl shadow-cyan-500/10">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-500 via-sky-400 to-cyan-600" />
-
-          <h2 className="text-sm font-semibold text-gray-700 mb-4">
-            {es.dashboard.tasks.formTitle}
-          </h2>
-
-          <form onSubmit={handleCreateTask} className="space-y-4">
-            <div className="space-y-1.5">
-              <label
-                htmlFor="title"
-                className="flex items-center justify-between text-xs font-medium text-gray-700"
-              >
-                <span>{es.dashboard.tasks.titleLabel}</span>
-                {<CharCounter length={title.length} max={TASK_TITLE_MAX} />}
-              </label>
-              <input
-                id="title"
-                type="text"
-                placeholder={es.dashboard.tasks.titlePlaceholder}
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-                minLength={TASK_TITLE_MIN}
-                maxLength={TASK_TITLE_MAX}
-                className="w-full rounded-xl border border-gray-300 bg-gray-50/50 px-4 py-2.5 text-sm text-gray-900 transition-all focus:border-cyan-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-600/20"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label
-                htmlFor="description"
-                className="flex items-center justify-between text-xs font-medium text-gray-700"
-              >
-                <span>{es.dashboard.tasks.descriptionLabel}</span>
-                {
-                  <CharCounter
-                    length={description.length}
-                    max={TASK_DESCRIPTION_MAX}
-                  />
-                }
-              </label>
-              <input
-                id="description"
-                type="text"
-                placeholder={es.dashboard.tasks.descriptionPlaceholder}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                maxLength={TASK_DESCRIPTION_MAX}
-                className="w-full rounded-xl border border-gray-300 bg-gray-50/50 px-4 py-2.5 text-sm text-gray-900 transition-all focus:border-cyan-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-600/20"
-              />
-            </div>
-
+    <div className="min-h-screen bg-background">
+      {/* Full-width bar + content inside (ESTILOS §5.2) */}
+      <header className="border-b border-line bg-surface">
+        <div className="flex h-14 items-center justify-between gap-4 px-4 sm:px-8">
+          <span className="text-base font-semibold text-foreground">{es.dashboard.board.brand}</span>
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="truncate text-sm text-foreground-secondary">{userName}</span>
             <button
-              type="submit"
-              disabled={creating}
-              className="cursor-pointer w-full sm:w-auto rounded-xl bg-gradient-to-b from-cyan-500 to-cyan-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-cyan-500/25 transition-all hover:from-cyan-400 hover:to-cyan-600 active:scale-[0.99] disabled:opacity-50"
+              type="button"
+              disabled={loggingOut}
+              onClick={logout}
+              className={`shrink-0 rounded-control px-2 py-1.5 text-sm text-foreground-secondary transition-colors duration-150 hover:bg-surface-sunken hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
             >
-              {creating ? es.dashboard.tasks.submitting : es.dashboard.tasks.submit}
+              {loggingOut ? es.auth.logout.buttonLoading : es.auth.logout.button}
             </button>
-          </form>
+          </div>
         </div>
+      </header>
 
-        {/* LISTA DE TAREAS */}
-        <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-gray-700">{es.dashboard.tasks.listTitle}</h2>
+      <main className="space-y-4 px-4 py-6 sm:px-8">
+        <h1 className="sr-only">{es.dashboard.board.title}</h1>
 
-          {loading && (
-            <p className="text-sm text-gray-500">{es.dashboard.tasks.listLoading}</p>
-          )}
+        {/* Skeletons, first-time screen and the full error state arrive in U2.4.3 */}
+        {status === "loading" && (
+          <p role="status" className="text-sm text-foreground-secondary">
+            {es.dashboard.board.loading}
+          </p>
+        )}
 
-          {!loading && tasks.length === 0 && (
-            <p className="text-sm text-gray-500">{es.dashboard.tasks.listEmpty}</p>
-          )}
+        {status === "error" && (
+          <div role="alert" className="flex items-center gap-3 text-sm text-foreground">
+            <p>{es.dashboard.board.loadError}</p>
+            <button
+              type="button"
+              onClick={retry}
+              className={`rounded-control border border-line bg-surface px-3 py-1.5 font-medium transition-colors duration-150 hover:border-line-strong ${FOCUS_RING}`}
+            >
+              {es.dashboard.board.retry}
+            </button>
+          </div>
+        )}
 
-          <ul className="space-y-3">
-            {tasks.map((task) => (
-              <li
-                key={task.id}
-                className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:shadow-md"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span
-                    className={`text-sm font-medium text-gray-900 ${task.completed ? "line-through opacity-60" : ""}`}
-                  >
-                    {task.title}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    {task.completed ? (
-                      <button
-                        type="button"
-                        disabled={updating}
-                        onClick={() =>
-                          handleUpdateCompletedTask(task.id, !task.completed)
-                        }
-                        className="cursor-pointer inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200"
-                      >
-                        {es.dashboard.tasks.statusCompleted}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={updating}
-                        onClick={() =>
-                          handleUpdateCompletedTask(task.id, !task.completed)
-                        }
-                        className="cursor-pointer inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-200"
-                      >
-                        {es.dashboard.tasks.statusPending}
-                      </button>
-                    )}
+        {status === "ready" && weekStart && (
+          <>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <WeekNav
+                weekStart={weekStart}
+                isCurrentWeek={weekStart === startOfWeek(currentDay)}
+                onPrevious={() => moveWeeks(-1)}
+                onNext={() => moveWeeks(1)}
+                onBackToToday={() => loadWeek(startOfWeek(today()))}
+              />
+              {/* key: changing the area remounts the field, so the focus jumps to it */}
+              <NewTaskForm
+                key={targetArea?.id}
+                targetArea={targetArea}
+                open={newTaskOpen}
+                onOpen={() => setNewTaskOpen(true)}
+                onClose={closeNewTask}
+                onCreate={handleCreateTask}
+              />
+            </div>
 
-                    <button
-                      className="cursor-pointer size-5 text-red-600"
-                      disabled={deleting}
-                      type="button"
-                      onClick={() => handleDeleteTask(task.id)}
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                        className="size-5"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                {task.description && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    {task.description}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
+            <AreaSelector areas={areas} selectedAreaId={selectedAreaId} onSelect={setSelectedAreaId} onCreateArea={handleCreateArea} />
+
+            {areas.length === 0 ? (
+              <p className="text-sm text-foreground-secondary">{es.dashboard.board.noAreas}</p>
+            ) : (
+              <BoardGrid areas={visibleAreas} tasks={tasks} weekStart={weekStart} today={currentDay} onAddTask={openNewTaskIn} />
+            )}
+          </>
+        )}
+      </main>
     </div>
   );
 }

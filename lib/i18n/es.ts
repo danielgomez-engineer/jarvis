@@ -68,33 +68,49 @@ export const es = {
       nameFallback: "Usuario",
     },
 
-    tasks: {
-      // Header
-      badge: "Centro de mando • Tareas",
-      headingStart: "Panel de",
-      headingAccent: "tareas",
-      subtitle: "Gestiona y supervisa tus objetivos diarios",
+    // JV-1: weekly board (areas × days)
+    board: {
+      brand: "Jarvis",
+      title: "Tablero de la semana",
+      loading: "Cargando tablero...",
+      loadError: "No pudimos cargar tu tablero.",
+      retry: "Reintentar",
+      noAreas: "Crea tu primera área con «+ Área» para empezar.",
+      noDate: "Sin fecha",
+      todaySuffix: "hoy",
+      laneEmpty: "Sin tareas esta semana",
+      addTaskIn: "Añadir tarea en {area}",
+      cellLabel: "{area}, {day}",
+      progressLabel: "{done} de {total} hechas esta semana",
+      completedLabel: "Hecha",
+    },
 
-      // Create form
-      formTitle: "Nueva tarea",
-      titleLabel: "Título",
-      titlePlaceholder: "Escribe la tarea",
-      descriptionLabel: "Descripción",
-      descriptionPlaceholder: "Escribe una descripción",
-      submit: "Agregar tarea",
+    week: {
+      previous: "Semana anterior",
+      next: "Semana siguiente",
+      backToToday: "Hoy",
+      srPrefix: "Semana del",
+    },
+
+    areas: {
+      selectorLabel: "Filtrar por área",
+      all: "Todas",
+      add: "+ Área",
+      nameLabel: "Nombre del área nueva",
+      namePlaceholder: "Ej.: Inglés",
+      created: "Área «{name}» creada",
+    },
+
+    newTask: {
+      button: "Nueva tarea",
+      shortcut: "N",
+      titleLabel: "Título de la tarea nueva",
+      placeholder: "Nueva tarea en {area}",
+      submit: "Crear",
       submitting: "Creando...",
-
-      // List
-      listTitle: "Mis tareas",
-      listLoading: "Cargando tareas...",
-      listEmpty: "No tienes tareas todavía",
-      statusCompleted: "Completada",
-      statusPending: "Pendiente",
-
-      // Success messages
-      created: "Tarea creada exitosamente",
-      updated: "Tarea actualizada exitosamente",
-      deleted: "Tarea eliminada exitosamente",
+      cancel: "Cancelar",
+      needsArea: "Primero crea un área",
+      created: "Tarea creada en {area} · Sin fecha",
     },
   },
 

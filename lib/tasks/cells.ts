@@ -29,3 +29,9 @@ export async function userOwnsArea(userId: number, areaId: number): Promise<bool
   const area = await prisma.area.findFirst({ where: { id: areaId, userId }, select: { id: true } });
   return area !== null;
 }
+
+// The API answers with the same day format it receives: "2026-10-31", not "2026-10-31T00:00:00.000Z".
+// That way the UI never builds a Date from it and the time zone can't move the task to another day.
+export function serializeTask<T extends { dueDate: Date | null }>(task: T) {
+  return { ...task, dueDate: task.dueDate ? task.dueDate.toISOString().slice(0, 10) : null };
+}

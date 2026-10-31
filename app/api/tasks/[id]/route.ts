@@ -5,7 +5,7 @@ import { updateTaskSchema } from "@/lib/validations/tasks";
 import { API_ERROR_CODES } from "@/lib/errors/codes";
 import { getFieldErrors } from "@/lib/validations/fieldErrors";
 import { DB_INT_MAX } from "@/lib/validations/limits";
-import { TASK_FIELDS, nextPositionInCell, toDateOnly, userOwnsArea } from "@/lib/tasks/cells";
+import { TASK_FIELDS, nextPositionInCell, serializeTask, toDateOnly, userOwnsArea } from "@/lib/tasks/cells";
 
 //===================================================JV-1: UPDATE TASK=================================================
 export async function PATCH(
@@ -73,7 +73,7 @@ export async function PATCH(
       select: TASK_FIELDS,
     });
 
-    return NextResponse.json(updatedTask, { status: 200 });
+    return NextResponse.json(serializeTask(updatedTask), { status: 200 });
   } catch (err) {
     console.error("Internal server error: ", err);
     return NextResponse.json(
