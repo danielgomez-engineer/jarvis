@@ -16,3 +16,7 @@ export const AREA_NAME_MAX = 40;
 export const AREA_NAME_MIN = 1;
 // Number of area identity colors (tokens area-1…area-6 in globals.css)
 export const AREA_COLOR_COUNT = 6;
+
+// JV-1: largest value of a Postgres INTEGER column (ids, position). A bigger number
+// makes Prisma throw (500), so it's rejected before reaching the database (400).
+export const DB_INT_MAX = 2_147_483_647;
