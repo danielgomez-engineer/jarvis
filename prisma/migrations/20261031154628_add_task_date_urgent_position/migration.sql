@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Task" ADD COLUMN     "dueDate" DATE,
+ADD COLUMN     "position" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "urgent" BOOLEAN NOT NULL DEFAULT false;

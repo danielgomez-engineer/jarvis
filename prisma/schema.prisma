@@ -20,12 +20,19 @@ model User {
 }
 
 model Task {
-  id          Int      @id @default(autoincrement())
-  title       String   @db.VarChar(120)
-  description String?  @db.VarChar(1000)
-  completed   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id          Int     @id @default(autoincrement())
+  title       String  @db.VarChar(120)
+  description String? @db.VarChar(1000)
+  completed   Boolean @default(false)
+
+  // JV-1: day only (no time) so the task never shifts to another day because of the time zone
+  dueDate  DateTime? @db.Date
+  urgent   Boolean   @default(false)
+  // JV-1: manual order inside its board cell (area × day)
+  position Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   userId Int
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
