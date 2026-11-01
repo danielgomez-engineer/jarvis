@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { PlusIcon } from "@heroicons/react/24/outline";
 import { es } from "@/lib/i18n/es";
-import { translateText } from "@/lib/i18n/traslate";
 import { TASK_TITLE_MAX } from "@/lib/validations/limits";
 import CharCounter from "@/components/CharCounter";
+import AreaDot from "./AreaDot";
 import { Area } from "./types";
 
 type NewTaskFormProps = {
@@ -51,7 +51,7 @@ export default function NewTaskForm({ targetArea, open, onOpen, onClose, onCreat
       <button
         type="button"
         onClick={onOpen}
-        className={`flex items-center gap-2 rounded-control bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-accent/90 ${FOCUS_RING}`}
+        className={`flex items-center gap-2 rounded-control bg-accent-strong px-3 py-1.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-accent-strong-hover ${FOCUS_RING}`}
       >
         <PlusIcon aria-hidden="true" className="size-4" />
         {es.dashboard.newTask.button}
@@ -65,6 +65,12 @@ export default function NewTaskForm({ targetArea, open, onOpen, onClose, onCreat
       <label htmlFor="new-task-title" className="sr-only">
         {es.dashboard.newTask.titleLabel}
       </label>
+      {/* The destination stays visible while typing (the placeholder disappears) */}
+      <span className="flex items-center gap-1.5 text-sm text-foreground-secondary">
+        {es.dashboard.newTask.targetPrefix}
+        <AreaDot color={targetArea.color} />
+        <span className="text-foreground">{targetArea.name}</span>
+      </span>
       <div className="relative">
         <input
           id="new-task-title"
@@ -72,10 +78,10 @@ export default function NewTaskForm({ targetArea, open, onOpen, onClose, onCreat
           value={title}
           maxLength={TASK_TITLE_MAX}
           disabled={saving}
-          placeholder={translateText(es.dashboard.newTask.placeholder, { area: targetArea.name })}
+          placeholder={es.dashboard.newTask.placeholder}
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={(e) => e.key === "Escape" && close()}
-          className="w-64 rounded-control border border-line-strong bg-surface px-3 py-1.5 text-base sm:text-sm text-foreground focus:border-accent focus:outline-none disabled:bg-surface-sunken disabled:text-foreground-muted"
+          className="w-64 rounded-control border border-line-strong bg-surface px-3 py-1.5 text-base sm:text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25 disabled:bg-surface-sunken disabled:text-foreground-muted"
         />
         <span className="absolute -bottom-5 right-0 text-xs">
           <CharCounter length={title.length} max={TASK_TITLE_MAX} />
@@ -84,7 +90,7 @@ export default function NewTaskForm({ targetArea, open, onOpen, onClose, onCreat
       <button
         type="submit"
         disabled={saving || !title.trim()}
-        className={`rounded-control bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
+        className={`rounded-control bg-accent-strong px-3 py-1.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-accent-strong-hover disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
       >
         {saving ? es.dashboard.newTask.submitting : es.dashboard.newTask.submit}
       </button>

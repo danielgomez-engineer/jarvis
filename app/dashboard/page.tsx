@@ -18,11 +18,16 @@ type ApiFailure = Extract<ApiResult<unknown>, { ok: false }>;
 
 const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
+// Errors stay longer than the global 4s so they can be read; undo needs time to be pressed (ESTILOS §4.J)
+const ERROR_TOAST_MS = 7000;
+const UNDO_TOAST_MS = 5000;
+
 // Asks for the areas and that week's tasks at the same time. Doesn't touch the screen.
+// "today" also brings the overdue tasks from older weeks (they show up in "Hoy").
 async function fetchWeek(start: string) {
   const [areasResult, tasksResult] = await Promise.all([
     apiRequest<Area[]>("/api/areas"),
-    apiRequest<Task[]>(`/api/tasks?weekStart=${start}`),
+    apiRequest<Task[]>(`/api/tasks?weekStart=${start}&today=${today()}`),
   ]);
   return { areasResult, tasksResult };
 }
@@ -53,7 +58,7 @@ export default function DashboardPage() {
   // Toast with the API error; a 401 anywhere means the session expired → login
   const showError = useCallback(
     (failure: ApiFailure) => {
-      toast.error(translateError(failure.code));
+      toast.error(translateError(failure.code), { duration: ERROR_TOAST_MS });
       if (failure.status === 401) router.push("/login");
     },
     [router],
@@ -149,6 +154,12 @@ export default function DashboardPage() {
     setNewTaskOpen(true);
   };
 
+  // Picking a filter forgets the lane chosen with "+", so "Nueva tarea" follows the filter again
+  const selectArea = (areaId: number | null) => {
+    setSelectedAreaId(areaId);
+    setNewTaskAreaId(null);
+  };
+
   const closeNewTask = () => {
     setNewTaskOpen(false);
     setNewTaskAreaId(null);
@@ -181,6 +192,34 @@ export default function DashboardPage() {
     toast.success(translateText(es.dashboard.newTask.created, { area: targetArea.name }));
     return true;
   };
+
+  //==========================JV-1 (U2.4.2): COMPLETE / UNDO==============================================================
+  // Optimistic: the check changes at once, and if the server says no, it goes back and a toast explains why.
+  // The screen never keeps showing something the server didn't save (spec 5).
+  const setTaskCompleted = async (task: Task, completed: boolean, offerUndo: boolean) => {
+    const applyCompleted = (value: boolean) =>
+      setTasks((current) => current.map((item) => (item.id === task.id ? { ...item, completed: value } : item)));
+
+    applyCompleted(completed);
+
+    const result = await apiRequest<Task>(`/api/tasks/${task.id}`, { method: "PATCH", body: { completed } });
+
+    if (!result.ok) {
+      applyCompleted(!completed);
+      showError(result);
+      return;
+    }
+
+    if (!offerUndo) return;
+
+    // Says what happened, with the task's name (ESTILOS §4.J)
+    toast.success(translateText(completed ? es.dashboard.board.markedDone : es.dashboard.board.markedPending, { title: task.title }), {
+      duration: UNDO_TOAST_MS,
+      action: { label: es.dashboard.board.undo, onClick: () => setTaskCompleted(task, !completed, false) },
+    });
+  };
+
+  const handleToggleCompleted = (task: Task) => setTaskCompleted(task, !task.completed, true);
 
   //==========================LOGOUT==============================================================
   const logout = async () => {
@@ -265,12 +304,12 @@ export default function DashboardPage() {
               />
             </div>
 
-            <AreaSelector areas={areas} selectedAreaId={selectedAreaId} onSelect={setSelectedAreaId} onCreateArea={handleCreateArea} />
+            <AreaSelector areas={areas} selectedAreaId={selectedAreaId} onSelect={selectArea} onCreateArea={handleCreateArea} />
 
             {areas.length === 0 ? (
               <p className="text-sm text-foreground-secondary">{es.dashboard.board.noAreas}</p>
             ) : (
-              <BoardGrid areas={visibleAreas} tasks={tasks} weekStart={weekStart} today={currentDay} onAddTask={openNewTaskIn} />
+              <BoardGrid areas={visibleAreas} tasks={tasks} weekStart={weekStart} today={currentDay} onAddTask={openNewTaskIn} onToggleCompleted={handleToggleCompleted} />
             )}
           </>
         )}

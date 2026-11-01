@@ -80,7 +80,7 @@ export default function AreaSelector({ areas, selectedAreaId, onSelect, onCreate
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === "Escape" && closeForm()}
             onBlur={() => !name.trim() && closeForm()}
-            className="w-40 rounded-control border border-line-strong bg-surface px-2 py-1 text-base sm:text-sm text-foreground focus:border-accent focus:outline-none disabled:bg-surface-sunken disabled:text-foreground-muted"
+            className="w-40 rounded-control border border-line-strong bg-surface px-2 py-1 text-base sm:text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25 disabled:bg-surface-sunken disabled:text-foreground-muted"
           />
         </form>
       ) : (

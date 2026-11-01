@@ -19,25 +19,30 @@ export async function GET(request: Request) {
     }
 
     // JV-1: the board asks for one week at a time
+    const params = new URL(request.url).searchParams;
     const validation = taskWeekQuerySchema.safeParse({
-      weekStart: new URL(request.url).searchParams.get("weekStart"),
+      weekStart: params.get("weekStart"),
+      // A missing param arrives as null; undefined = "not sent"
+      today: params.get("today") ?? undefined,
     });
 
     if (!validation.success) {
       return NextResponse.json({ code: API_ERROR_CODES.VALIDATION_ERROR, fields: getFieldErrors(validation.error) }, { status: 400 });
     }
 
-    const { weekStart } = validation.data;
+    const { weekStart, today } = validation.data;
 
     // 5. decoded.userId is trustworthy because it came from a token
     //    WE signed — the client can't forge it. Filter tasks by it.
     // JV-1: tasks of that week (Monday to Sunday) + the ones without a date ("Sin fecha")
+    //       + overdue ones (before today and not done), even from older weeks: they show up in "Hoy"
     const tasks = await prisma.task.findMany({
       where: {
         userId: authResult.userId,
         OR: [
           { dueDate: null },
           { dueDate: { gte: toDateOnly(weekStart), lte: toDateOnly(addDays(weekStart, 6)) } },
+          ...(today ? [{ dueDate: { lt: toDateOnly(today) }, completed: false }] : []),
         ],
       },
       orderBy: [{ position: "asc" }, { id: "asc" }],

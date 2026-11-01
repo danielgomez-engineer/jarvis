@@ -10,7 +10,8 @@
 
   /* Lines */
   --line: var(--color-zinc-200);
-  --line-strong: var(--color-zinc-300);
+  /* JV-1: control borders (check, inputs) need 3:1 to be seen; zinc-300 was 1.48:1. Between zinc-400 and 500. */
+  --line-strong: oklch(66% 0.015 286);
 
   /* Text */
   --foreground: var(--color-zinc-900);
@@ -18,10 +19,13 @@
   --foreground-muted: var(--color-zinc-400);
 
   /* Meaning colors: each one has a single meaning */
-  --accent: var(--color-cyan-600); /* active / present */
+  --accent: var(--color-cyan-600); /* active / present: focus ring, today line, active tab (not text) */
+  /* JV-1: cyan-600 fails 4.5:1 as text or under white text, so fills and cyan text use 700 (hover 800) */
+  --accent-strong: var(--color-cyan-700);
+  --accent-strong-hover: var(--color-cyan-800);
   --accent-soft: var(--color-cyan-50); /* "today" / active background */
   --success: var(--color-emerald-600); /* completed check */
-  --attention: var(--color-amber-600); /* overdue task */
+  --attention: var(--color-amber-700); /* overdue task (700: 600 fails 4.5:1 contrast as text) */
   --danger: var(--color-red-600); /* delete, errors */
 }
 
@@ -36,6 +40,8 @@
   --color-foreground-secondary: var(--foreground-secondary);
   --color-foreground-muted: var(--foreground-muted);
   --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-strong-hover: var(--accent-strong-hover);
   --color-accent-soft: var(--accent-soft);
   --color-success: var(--success);
   --color-attention: var(--attention);

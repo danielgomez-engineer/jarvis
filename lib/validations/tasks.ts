@@ -26,9 +26,11 @@ export const updateTaskSchema = z.object({
     position: z.number().int().min(0).max(DB_INT_MAX),
 }).partial().refine((data) => Object.keys(data).length > 0);
 
-// JV-1: GET /api/tasks?weekStart=2026-10-26 → that week's tasks + the ones without a date
+// JV-1: GET /api/tasks?weekStart=2026-10-26&today=2026-10-31 → that week's tasks + the ones without a date.
+// "today" comes from the browser (the person's clock) and adds the overdue tasks of any week.
 export const taskWeekQuerySchema = z.object({
     weekStart: daySchema,
+    today: daySchema.optional(),
 });
 
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;

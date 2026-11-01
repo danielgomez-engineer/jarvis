@@ -10,7 +10,8 @@ export default function CharCounter({ length, max }: CharCounterProps) {
   }
 
   return (
-    <span className="font-normal text-gray-500">
+    // JV-1: token instead of a palette color, and mono because it is a counter (ESTILOS rule 5)
+    <span className="font-mono font-normal tabular-nums text-foreground-secondary">
       {length}/{max}
     </span>
   );
