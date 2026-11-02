@@ -48,7 +48,7 @@ export const es = {
       loginLink: "Inicia sesión",
 
       // Success messages
-      success: "¡Cuenta creada exitosamente!",
+      success: "Cuenta creada. Ya puedes iniciar sesión",
     },
 
     logout: {
@@ -61,6 +61,11 @@ export const es = {
     },
   },
 
+  // JV-1 (C1): confirmation dialog, shared by every screen
+  confirm: {
+    cancel: "Cancelar",
+  },
+
   dashboard: {
     user: {
       // Labels
@@ -68,33 +73,71 @@ export const es = {
       nameFallback: "Usuario",
     },
 
-    tasks: {
-      // Header
-      badge: "Centro de mando • Tareas",
-      headingStart: "Panel de",
-      headingAccent: "tareas",
-      subtitle: "Gestiona y supervisa tus objetivos diarios",
+    // JV-1: weekly board (areas × days)
+    board: {
+      brand: "Jarvis",
+      title: "Tablero de la semana",
+      loading: "Cargando tablero...",
+      loadError: "No pudimos cargar tu tablero",
+      retry: "Reintentar",
+      noDate: "Sin fecha",
+      todaySuffix: "hoy",
+      laneEmpty: "Sin tareas esta semana",
+      addTaskIn: "Añadir tarea en {area}",
+      cellLabel: "{area}, {day}",
+      progressLabel: "{done} de {total} hechas esta semana",
+      completedLabel: "Hecha",
+      overdue: "atrasada",
+      urgentLabel: "Urgente:",
+      markedDone: "{title} marcada como hecha",
+      markedPending: "{title} marcada como pendiente",
+      undo: "Deshacer",
+      // JV-1 (C1): delete
+      deleteTaskLabel: "Eliminar tarea: {title}",
+      deleteTitle: "¿Eliminar {title}?",
+      deleteMessage: "Se borra para siempre. No se puede deshacer.",
+      deleteConfirm: "Eliminar",
+      deleted: "{title} eliminada",
+    },
 
-      // Create form
-      formTitle: "Nueva tarea",
-      titleLabel: "Título",
-      titlePlaceholder: "Escribe la tarea",
-      descriptionLabel: "Descripción",
-      descriptionPlaceholder: "Escribe una descripción",
-      submit: "Agregar tarea",
+    week: {
+      previous: "Semana anterior",
+      next: "Semana siguiente",
+      backToToday: "Hoy",
+      srPrefix: "Semana del",
+    },
+
+    // JV-1 (U2.4.3): first time, no areas yet (spec 5)
+    firstArea: {
+      title: "¿En qué estás trabajando?",
+      hint: "Crea tu primera área. Justo después le añades su primera tarea.",
+      placeholder: "Ej.: Inglés",
+      suggestionsLabel: "Ideas para empezar",
+      suggestions: ["Estudio", "Trabajo", "Casa", "Proyecto personal"],
+      submit: "Crear área",
       submitting: "Creando...",
+    },
 
-      // List
-      listTitle: "Mis tareas",
-      listLoading: "Cargando tareas...",
-      listEmpty: "No tienes tareas todavía",
-      statusCompleted: "Completada",
-      statusPending: "Pendiente",
+    areas: {
+      selectorLabel: "Filtrar por área",
+      all: "Todas",
+      add: "+ Área",
+      nameLabel: "Nombre del área nueva",
+      namePlaceholder: "Ej.: Inglés",
+      created: "Área {name} creada",
+    },
 
-      // Success messages
-      created: "Tarea creada exitosamente",
-      updated: "Tarea actualizada exitosamente",
-      deleted: "Tarea eliminada exitosamente",
+    newTask: {
+      button: "Nueva tarea",
+      shortcut: "N",
+      titleLabel: "Título de la tarea nueva",
+      placeholder: "Escribe la tarea",
+      submit: "Crear",
+      submitting: "Creando...",
+      cancel: "Cancelar",
+      needsArea: "Primero crea un área",
+      targetPrefix: "en",
+      created: "Tarea creada en {area} · Sin fecha",
     },
   },
 

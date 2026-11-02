@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "sonner";
+import AppToaster from "@/components/AppToaster";
+import { ConfirmProvider } from "@/components/ConfirmDialog";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,9 +27,10 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body>
-        {children}
+        {/* JV-1 (C1): any page can ask "are you sure?" with useConfirm() */}
+        <ConfirmProvider>{children}</ConfirmProvider>
         {/* Notificaciones flotantes profesionales en toda la app */}
-        <Toaster position="top-center" richColors duration={2000} />
+        <AppToaster />
       </body>
     </html>
   );
