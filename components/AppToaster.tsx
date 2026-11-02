@@ -2,12 +2,11 @@
 
 import { useSyncExternalStore } from "react";
 import { Toaster } from "sonner";
+import { PHONE_QUERY } from "@/lib/ui/media";
 
 //=====JV-1: APP TOASTS (ESTILOS §4.J)=====
 // Neutral surface, color only on the icon. "!" beats Sonner's own styles.
 // On a phone they go at the bottom, near the thumb; on desktop at the top (to be reviewed in U2.7).
-
-const PHONE_QUERY = "(max-width: 639px)";
 
 function subscribe(onChange: () => void) {
   const media = window.matchMedia(PHONE_QUERY);

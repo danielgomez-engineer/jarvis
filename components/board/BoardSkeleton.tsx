@@ -17,15 +17,23 @@ export default function BoardSkeleton() {
         <div className="h-8 w-36 rounded-control bg-surface-sunken" />
       </div>
 
-      {/* Area selector */}
-      <div aria-hidden="true" className="flex gap-4">
+      {/* Area selector: same height as the real chips (text + padding + underline), so nothing jumps */}
+      <div aria-hidden="true" className="flex h-[38px] items-center gap-4">
         {[16, 20, 16, 20].map((width, index) => (
-          <div key={index} style={{ width: `${width * 4}px` }} className="h-6 rounded-card bg-surface-sunken" />
+          <div key={index} style={{ width: `${width * 4}px` }} className="h-5 rounded-card bg-surface-sunken" />
         ))}
       </div>
 
       <div aria-hidden="true" className="overflow-hidden pb-2">
-        <div className="grid min-w-[72rem] grid-cols-[10rem_repeat(8,minmax(0,1fr))] gap-1.5">
+        <div className="grid min-w-[72rem] grid-cols-[10rem_minmax(0,1.4fr)_repeat(7,minmax(0,1fr))] gap-1.5">
+          {/* Header row ("SIN FECHA", "LUN 2"…): same 22px as the real one */}
+          <div />
+          {Array.from({ length: COLUMNS }, (_, column) => (
+            <div key={column} className="flex h-[22px] items-start px-1.5">
+              <div className="h-3 w-14 rounded-card bg-surface-sunken" />
+            </div>
+          ))}
+
           {Array.from({ length: LANES }, (_, lane) => (
             <div key={lane} className="contents">
               <div className="py-1.5 pr-2">

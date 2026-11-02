@@ -1,12 +1,13 @@
-import { CheckIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { useRef } from "react";
+import { Bars3BottomLeftIcon, CheckIcon } from "@heroicons/react/24/outline";
 import { es } from "@/lib/i18n/es";
-import { translateText } from "@/lib/i18n/traslate";
 import { formatDayLabel } from "@/lib/dates/week";
-import { Task, TaskActions } from "./types";
+import { useBoard } from "./BoardContext";
+import TaskMenu, { TaskMenuHandle } from "./TaskMenu";
+import { Task } from "./types";
 
 type TaskCardProps = {
   task: Task;
-  actions: TaskActions;
   // Only when the card is shown in "Hoy" as overdue: adds "atrasada · lun 26"
   showOverdue?: boolean;
 };
@@ -15,11 +16,21 @@ type TaskCardProps = {
 const COMPLETE_TRANSITION = "transition-colors duration-300 motion-reduce:transition-none";
 
 //=====JV-1: TASK CARD (ESTILOS §4.C)=====
-export default function TaskCard({ task, actions, showOverdue = false }: TaskCardProps) {
-  const deleteLabel = translateText(es.dashboard.board.deleteTaskLabel, { title: task.title });
+export default function TaskCard({ task, showOverdue = false }: TaskCardProps) {
+  const { taskActions } = useBoard();
+  const menuRef = useRef<TaskMenuHandle>(null);
 
   return (
-    <li className="group flex items-start gap-2 rounded-card border border-line bg-surface px-2 py-1.5 text-sm transition-colors duration-150 hover:border-line-strong">
+    <li
+      // JV-1 (U2.6.1): "m" opens the menu from anywhere in the card (e.g. with the focus on its check)
+      onKeyDown={(e) => {
+        if ((e.key === "m" || e.key === "M") && !(e.target as HTMLElement).closest("[popover]")) {
+          e.preventDefault();
+          menuRef.current?.open();
+        }
+      }}
+      className="group flex items-start gap-2 rounded-card border border-line bg-surface px-2 py-1.5 text-sm transition-colors duration-150 hover:border-line-strong"
+    >
       {/* JV-1 (U2.4.2): a real checkbox, so a screen reader says "Clase de inglés, casilla, marcada".
           The input is hidden and the circle is drawn; the label makes the whole circle clickable. */}
       <label className="-m-1 shrink-0 cursor-pointer rounded-full p-1 has-focus-visible:outline-2 has-focus-visible:outline-offset-1 has-focus-visible:outline-accent">
@@ -28,10 +39,10 @@ export default function TaskCard({ task, actions, showOverdue = false }: TaskCar
           className="sr-only"
           checked={task.completed}
           aria-label={task.title}
-          onChange={() => actions.onToggleCompleted(task)}
+          onChange={() => taskActions.onToggleCompleted(task)}
           // Space already toggles a checkbox; "x" is the board shortcut (spec 5)
           onKeyDown={(e) => {
-            if (e.key === "x" || e.key === "X") actions.onToggleCompleted(task);
+            if (e.key === "x" || e.key === "X") taskActions.onToggleCompleted(task);
           }}
         />
         <span
@@ -53,6 +64,14 @@ export default function TaskCard({ task, actions, showOverdue = false }: TaskCar
             </>
           )}
           {task.title}
+          {/* JV-1 (U2.6.1): the note isn't shown on the card (it would make it huge); a mark says it exists
+              and the "⋯" menu shows it in full */}
+          {task.description && (
+            <>
+              <Bars3BottomLeftIcon aria-hidden="true" className="ml-1 inline size-3.5 align-[-2px] text-foreground-secondary" />
+              <span className="sr-only"> ({es.dashboard.board.hasNote})</span>
+            </>
+          )}
         </p>
 
         {/* Overdue = amber + the word "atrasada", never the color alone (ESTILOS §3.6) */}
@@ -63,17 +82,8 @@ export default function TaskCard({ task, actions, showOverdue = false }: TaskCar
         )}
       </div>
 
-      {/* JV-1 (C1): delete asks first (the page shows the dialog). With a mouse it appears on hover or
-          focus (ESTILOS §4.C); on touch screens, which have no hover, it is always visible. */}
-      <button
-        type="button"
-        onClick={() => actions.onDelete(task)}
-        aria-label={deleteLabel}
-        title={deleteLabel}
-        className="-m-1 shrink-0 rounded-control p-1 text-foreground-secondary transition-colors duration-150 hover:text-danger focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100"
-      >
-        <TrashIcon aria-hidden="true" className="size-4" />
-      </button>
+      {/* JV-1 (U2.6.1): one "⋯" with every secondary action (ESTILOS §4.C): move, urgent and delete */}
+      <TaskMenu ref={menuRef} task={task} />
     </li>
   );
 }
