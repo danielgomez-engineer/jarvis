@@ -19,8 +19,16 @@ export type Task = {
   areaId: number;
 };
 
-// JV-1: what a card can do, passed down from the page (grid → lane → cell → card) in one object
+// JV-1 (U2.6.1): where a task goes. Only the keys that change: { dueDate } or { areaId }
+export type TaskMove = {
+  dueDate?: string | null;
+  areaId?: number;
+};
+
+// JV-1: what a card can do. The page owns the logic; the cards get it from BoardContext
 export type TaskActions = {
   onToggleCompleted: (task: Task) => void;
+  onToggleUrgent: (task: Task) => void;
+  onMove: (task: Task, move: TaskMove) => void;
   onDelete: (task: Task) => void;
 };

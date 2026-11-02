@@ -4,11 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { es } from "@/lib/i18n/es";
-import { translateError } from "@/lib/i18n/traslate";
+import { translateError, translateText } from "@/lib/i18n/traslate";
 import { highlight } from "@/lib/i18n/highlight";
 import { ApiResult, apiRequest } from "@/lib/api/request";
-import { addDays, startOfWeek, today } from "@/lib/dates/week";
+import { addDays, formatDayLabel, formatDayMonthLabel, startOfWeek, today } from "@/lib/dates/week";
 import AreaSelector from "@/components/board/AreaSelector";
+import { BoardProvider } from "@/components/board/BoardContext";
 import BoardError from "@/components/board/BoardError";
 import BoardGrid from "@/components/board/BoardGrid";
 import BoardSkeleton from "@/components/board/BoardSkeleton";
@@ -16,7 +17,7 @@ import FirstAreaForm from "@/components/board/FirstAreaForm";
 import NewTaskForm from "@/components/board/NewTaskForm";
 import WeekNav from "@/components/board/WeekNav";
 import { useConfirm } from "@/components/ConfirmDialog";
-import { Area, Task, TaskActions } from "@/components/board/types";
+import { Area, Task, TaskActions, TaskMove } from "@/components/board/types";
 import { ErrorCode } from "@/lib/errors/codes";
 
 type BoardStatus = "loading" | "ready" | "error";
@@ -166,7 +167,8 @@ export default function DashboardPage() {
     if (status !== "ready") return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      const typing = (e.target as HTMLElement).closest("input, textarea, select, [contenteditable='true']");
+      // Not while typing, nor inside the task menu (a popover) or a dialog: they handle their own keys
+      const typing = (e.target as HTMLElement).closest("input, textarea, select, [contenteditable='true'], [popover], dialog");
       if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
 
       if (e.key === "n" || e.key === "N") {
@@ -242,33 +244,91 @@ export default function DashboardPage() {
     return true;
   };
 
-  //==========================JV-1 (U2.4.2): COMPLETE / UNDO==============================================================
-  // Optimistic: the check changes at once, and if the server says no, it goes back and a toast explains why.
+  //==========================JV-1: EDIT A TASK (optimistic)==============================================================
+  // The change shows at once; if the server says no, the task goes back to how it was and a toast explains why.
   // The screen never keeps showing something the server didn't save (spec 5).
-  const setTaskCompleted = async (task: Task, completed: boolean, offerUndo: boolean) => {
-    const applyCompleted = (value: boolean) =>
-      setTasks((current) => current.map((item) => (item.id === task.id ? { ...item, completed: value } : item)));
+  // `body` is what the API receives, when it isn't exactly `changes` (undoing a move also restores the position).
+  const updateTask = async (task: Task, changes: Partial<Task>, body: object = changes): Promise<Task | null> => {
+    const replace = (next: Task) => setTasks((current) => current.map((item) => (item.id === task.id ? next : item)));
 
-    applyCompleted(completed);
+    replace({ ...task, ...changes });
 
-    const result = await apiRequest<Task>(`/api/tasks/${task.id}`, { method: "PATCH", body: { completed } });
+    const result = await apiRequest<Task>(`/api/tasks/${task.id}`, { method: "PATCH", body });
 
     if (!result.ok) {
-      applyCompleted(!completed);
+      replace(task);
       showError(result);
-      return;
+      return null;
     }
 
-    if (!offerUndo) return;
+    // The server's version: it may have changed more (e.g. the position in the new cell)
+    replace(result.data);
+    return result.data;
+  };
+
+  //==========================JV-1 (U2.4.2): COMPLETE / UNDO==============================================================
+  const setTaskCompleted = async (task: Task, completed: boolean, offerUndo: boolean) => {
+    const updated = await updateTask(task, { completed });
+    if (!updated || !offerUndo) return;
 
     // Says what happened, with the task's name (ESTILOS §4.J)
     toast.success(highlight(completed ? es.dashboard.board.markedDone : es.dashboard.board.markedPending, "title", task.title), {
       duration: UNDO_TOAST_MS,
-      action: { label: es.dashboard.board.undo, onClick: () => setTaskCompleted(task, !completed, false) },
+      action: { label: es.dashboard.board.undo, onClick: () => setTaskCompleted(updated, !completed, false) },
     });
   };
 
   const handleToggleCompleted = (task: Task) => setTaskCompleted(task, !task.completed, true);
+
+  //==========================JV-1 (U2.6.1): MOVE ("Mover a…") / URGENT==============================================================
+  // "Clase movida a mañana": hoy, mañana, a day of this week ("jue 5"), another week ("lun 9 nov"), Sin fecha or an area
+  const describeMove = (move: TaskMove): string => {
+    if (move.areaId !== undefined) return areas.find((area) => area.id === move.areaId)?.name ?? "";
+    if (!move.dueDate) return es.dashboard.board.noDate;
+
+    const now = today();
+    if (move.dueDate === now) return es.dashboard.board.destinationToday;
+    if (move.dueDate === addDays(now, 1)) return es.dashboard.board.destinationTomorrow;
+    return startOfWeek(move.dueDate) === startOfWeek(now) ? formatDayLabel(move.dueDate) : formatDayMonthLabel(move.dueDate);
+  };
+
+  // A moved card is drawn again in its new cell, so the old "⋯" (which had the focus) disappears.
+  // On the next frame, give the keyboard focus to the card in its new place (if it is still in this week).
+  const focusTaskMenu = (taskId: number) =>
+    requestAnimationFrame(() => {
+      if (document.activeElement && document.activeElement !== document.body) return;
+      document.querySelector<HTMLElement>(`[data-task-trigger="${taskId}"]`)?.focus({ preventScroll: true });
+    });
+
+  const handleMoveTask = async (task: Task, move: TaskMove) => {
+    const saving = updateTask(task, move);
+    focusTaskMenu(task.id);
+
+    const updated = await saving;
+    if (!updated) return;
+
+    // Undo = back to the same day, area and position it had
+    const before = { dueDate: task.dueDate, areaId: task.areaId };
+
+    toast.success(highlight(translateText(es.dashboard.board.moved, { destination: describeMove(move) }), "title", task.title), {
+      duration: UNDO_TOAST_MS,
+      action: {
+        label: es.dashboard.board.undo,
+        onClick: () => {
+          updateTask(updated, before, { ...before, position: task.position });
+          focusTaskMenu(task.id);
+        },
+      },
+    });
+  };
+
+  const handleToggleUrgent = async (task: Task) => {
+    const urgent = !task.urgent;
+    const updated = await updateTask(task, { urgent });
+    if (!updated) return;
+
+    toast.success(highlight(urgent ? es.dashboard.board.markedUrgent : es.dashboard.board.unmarkedUrgent, "title", task.title));
+  };
 
   //==========================JV-1 (C1): DELETE (asks first)==============================================================
   // Not optimistic: deleting can't be undone, so the card only disappears once the server confirms.
@@ -292,7 +352,12 @@ export default function DashboardPage() {
     toast.success(highlight(es.dashboard.board.deleted, "title", task.title));
   };
 
-  const taskActions: TaskActions = { onToggleCompleted: handleToggleCompleted, onDelete: handleDeleteTask };
+  const taskActions: TaskActions = {
+    onToggleCompleted: handleToggleCompleted,
+    onToggleUrgent: handleToggleUrgent,
+    onMove: handleMoveTask,
+    onDelete: handleDeleteTask,
+  };
 
   //==========================LOGOUT==============================================================
   const logout = async () => {
@@ -369,14 +434,10 @@ export default function DashboardPage() {
 
             {/* While another week loads, the current one dims (no layout jump) */}
             <div aria-busy={weekLoading} className={`transition-opacity duration-150 ${weekLoading ? "opacity-60" : ""}`}>
-              <BoardGrid
-                areas={visibleAreas}
-                tasks={tasks}
-                weekStart={weekStart}
-                today={currentDay}
-                onAddTask={openNewTaskIn}
-                taskActions={taskActions}
-              />
+              {/* Every card reads the areas (for "Otra área"), today and the actions from here */}
+              <BoardProvider value={{ areas, today: currentDay, taskActions }}>
+                <BoardGrid areas={visibleAreas} tasks={tasks} weekStart={weekStart} today={currentDay} onAddTask={openNewTaskIn} />
+              </BoardProvider>
             </div>
           </>
         )}

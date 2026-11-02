@@ -37,11 +37,17 @@ export function weekDays(weekStart: string): string[] {
 
 const weekdayFormat = new Intl.DateTimeFormat("es", { weekday: "short", timeZone: "UTC" });
 const dayMonthFormat = new Intl.DateTimeFormat("es", { day: "numeric", month: "short", timeZone: "UTC" });
+const monthFormat = new Intl.DateTimeFormat("es", { month: "short", timeZone: "UTC" });
 
 // "2026-10-28" → "mié 28"
 export function formatDayLabel(day: string): string {
   const date = parseDay(day);
   return `${weekdayFormat.format(date)} ${date.getUTCDate()}`;
+}
+
+// "2026-11-09" → "lun 9 nov": for days outside this week, where "lun 9" alone is ambiguous
+export function formatDayMonthLabel(day: string): string {
+  return `${formatDayLabel(day)} ${monthFormat.format(parseDay(day))}`;
 }
 
 // "2026-10-26" → "26 oct – 1 nov"
