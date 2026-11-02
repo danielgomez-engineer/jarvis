@@ -18,3 +18,9 @@ export type Task = {
   position: number;
   areaId: number;
 };
+
+// JV-1: what a card can do, passed down from the page (grid → lane → cell → card) in one object
+export type TaskActions = {
+  onToggleCompleted: (task: Task) => void;
+  onDelete: (task: Task) => void;
+};

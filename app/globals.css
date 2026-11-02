@@ -27,6 +27,7 @@
   --success: var(--color-emerald-600); /* completed check */
   --attention: var(--color-amber-700); /* overdue task (700: 600 fails 4.5:1 contrast as text) */
   --danger: var(--color-red-600); /* delete, errors */
+  --danger-hover: var(--color-red-700); /* JV-1: hover goes one shade darker (§4.A) */
 }
 
 @theme inline {
@@ -46,6 +47,7 @@
   --color-success: var(--success);
   --color-attention: var(--attention);
   --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
 
   /* Area identity dots (§2.1): muted, never cyan/emerald/amber/red */
   --color-area-1: var(--color-violet-500);

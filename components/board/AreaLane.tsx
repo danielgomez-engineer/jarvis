@@ -4,7 +4,7 @@ import { translateText } from "@/lib/i18n/traslate";
 import { formatDayLabel } from "@/lib/dates/week";
 import AreaDot from "./AreaDot";
 import BoardCell from "./BoardCell";
-import { Area, Task } from "./types";
+import { Area, Task, TaskActions } from "./types";
 
 type AreaLaneProps = {
   area: Area;
@@ -14,7 +14,7 @@ type AreaLaneProps = {
   today: string;
   // Opens "Nueva tarea" already pointing to this area
   onAddTask: (areaId: number) => void;
-  onToggleCompleted: (task: Task) => void;
+  taskActions: TaskActions;
 };
 
 // Inside a cell: pending before done (done ones sink to the bottom), then urgent first, then the manual order (spec 4.2)
@@ -31,7 +31,7 @@ function sortOverdue(tasks: Task[]): Task[] {
   return [...tasks].sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""));
 }
 
-export default function AreaLane({ area, tasks, days, today, onAddTask, onToggleCompleted }: AreaLaneProps) {
+export default function AreaLane({ area, tasks, days, today, onAddTask, taskActions }: AreaLaneProps) {
   // Only this week's days count for the progress (overdue tasks from older weeks don't)
   const weekTasks = tasks.filter((task) => task.dueDate !== null && days.includes(task.dueDate));
   // Overdue = a past day and not done (spec 4.2). Calculated here, never stored.
@@ -80,7 +80,7 @@ export default function AreaLane({ area, tasks, days, today, onAddTask, onToggle
         tasks={sortForCell(undatedTasks)}
         isToday={false}
         label={translateText(es.dashboard.board.cellLabel, { area: area.name, day: es.dashboard.board.noDate })}
-        onToggleCompleted={onToggleCompleted}
+        taskActions={taskActions}
       />
 
       {days.map((day) => (
@@ -90,7 +90,7 @@ export default function AreaLane({ area, tasks, days, today, onAddTask, onToggle
           // Overdue tasks also show up in "Hoy", on top of the area (spec 2.1)
           overdueTasks={day === today ? overdueTasks : undefined}
           isToday={day === today}
-          onToggleCompleted={onToggleCompleted}
+          taskActions={taskActions}
           label={translateText(es.dashboard.board.cellLabel, { area: area.name, day: formatDayLabel(day) })}
         />
       ))}

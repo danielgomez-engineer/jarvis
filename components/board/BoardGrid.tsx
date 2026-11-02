@@ -1,7 +1,7 @@
 import { es } from "@/lib/i18n/es";
 import { formatDayLabel, weekDays } from "@/lib/dates/week";
 import AreaLane from "./AreaLane";
-import { Area, Task } from "./types";
+import { Area, Task, TaskActions } from "./types";
 
 type BoardGridProps = {
   areas: Area[];
@@ -9,13 +9,13 @@ type BoardGridProps = {
   weekStart: string;
   today: string;
   onAddTask: (areaId: number) => void;
-  onToggleCompleted: (task: Task) => void;
+  taskActions: TaskActions;
 };
 
 const COLUMN_HEADER = "px-1.5 pb-1 text-xs font-medium uppercase tracking-wide tabular-nums";
 
 //=====JV-1: THE WEEKLY BOARD: one lane per area × ("Sin fecha" + Monday…Sunday)=====
-export default function BoardGrid({ areas, tasks, weekStart, today, onAddTask, onToggleCompleted }: BoardGridProps) {
+export default function BoardGrid({ areas, tasks, weekStart, today, onAddTask, taskActions }: BoardGridProps) {
   const days = weekDays(weekStart);
 
   return (
@@ -33,7 +33,7 @@ export default function BoardGrid({ areas, tasks, weekStart, today, onAddTask, o
         ))}
 
         {areas.map((area) => (
-          <AreaLane key={area.id} area={area} tasks={tasks.filter((task) => task.areaId === area.id)} days={days} today={today} onAddTask={onAddTask} onToggleCompleted={onToggleCompleted} />
+          <AreaLane key={area.id} area={area} tasks={tasks.filter((task) => task.areaId === area.id)} days={days} today={today} onAddTask={onAddTask} taskActions={taskActions} />
         ))}
       </div>
     </div>

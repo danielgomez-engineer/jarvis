@@ -26,6 +26,8 @@ export default function AppToaster() {
       toastOptions={{
         classNames: {
           toast: "bg-surface! border-line! text-foreground! shadow-float! rounded-panel! font-sans!",
+          // Sonner writes the text at weight 500, so a semibold name barely stood out. Normal text + semibold name.
+          title: "font-normal!",
           success: "[&_[data-icon]]:text-success",
           error: "[&_[data-icon]]:text-danger",
           actionButton:

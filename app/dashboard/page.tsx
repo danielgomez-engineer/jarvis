@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { es } from "@/lib/i18n/es";
-import { translateError, translateText } from "@/lib/i18n/traslate";
+import { translateError } from "@/lib/i18n/traslate";
+import { highlight } from "@/lib/i18n/highlight";
 import { ApiResult, apiRequest } from "@/lib/api/request";
 import { addDays, startOfWeek, today } from "@/lib/dates/week";
 import AreaSelector from "@/components/board/AreaSelector";
@@ -14,7 +15,8 @@ import BoardSkeleton from "@/components/board/BoardSkeleton";
 import FirstAreaForm from "@/components/board/FirstAreaForm";
 import NewTaskForm from "@/components/board/NewTaskForm";
 import WeekNav from "@/components/board/WeekNav";
-import { Area, Task } from "@/components/board/types";
+import { useConfirm } from "@/components/ConfirmDialog";
+import { Area, Task, TaskActions } from "@/components/board/types";
 import { ErrorCode } from "@/lib/errors/codes";
 
 type BoardStatus = "loading" | "ready" | "error";
@@ -41,6 +43,7 @@ async function fetchWeek(start: string) {
 //=====JV-1: WEEKLY BOARD (replaces the old task list)=====
 export default function DashboardPage() {
   const router = useRouter();
+  const confirm = useConfirm();
 
   // null until the first load: "today" depends on the person's clock,
   // so it's read in the browser and never while the page is prerendered
@@ -211,7 +214,7 @@ export default function DashboardPage() {
     }
 
     setAreas((current) => [...current, result.data]);
-    toast.success(translateText(es.dashboard.areas.created, { name: result.data.name }));
+    toast.success(highlight(es.dashboard.areas.created, "name", result.data.name));
     return result.data;
   };
 
@@ -235,7 +238,7 @@ export default function DashboardPage() {
     }
 
     setTasks((current) => [...current, result.data]);
-    toast.success(translateText(es.dashboard.newTask.created, { area: targetArea.name }));
+    toast.success(highlight(es.dashboard.newTask.created, "area", targetArea.name));
     return true;
   };
 
@@ -259,13 +262,37 @@ export default function DashboardPage() {
     if (!offerUndo) return;
 
     // Says what happened, with the task's name (ESTILOS §4.J)
-    toast.success(translateText(completed ? es.dashboard.board.markedDone : es.dashboard.board.markedPending, { title: task.title }), {
+    toast.success(highlight(completed ? es.dashboard.board.markedDone : es.dashboard.board.markedPending, "title", task.title), {
       duration: UNDO_TOAST_MS,
       action: { label: es.dashboard.board.undo, onClick: () => setTaskCompleted(task, !completed, false) },
     });
   };
 
   const handleToggleCompleted = (task: Task) => setTaskCompleted(task, !task.completed, true);
+
+  //==========================JV-1 (C1): DELETE (asks first)==============================================================
+  // Not optimistic: deleting can't be undone, so the card only disappears once the server confirms.
+  const handleDeleteTask = async (task: Task) => {
+    const confirmed = await confirm({
+      // The name in red: it is what gets deleted (red = delete, ESTILOS §2.1)
+      title: highlight(es.dashboard.board.deleteTitle, "title", task.title, "text-danger"),
+      message: es.dashboard.board.deleteMessage,
+      confirmLabel: es.dashboard.board.deleteConfirm,
+    });
+    if (!confirmed) return;
+
+    const result = await apiRequest(`/api/tasks/${task.id}`, { method: "DELETE" });
+
+    if (!result.ok) {
+      showError(result);
+      return;
+    }
+
+    setTasks((current) => current.filter((item) => item.id !== task.id));
+    toast.success(highlight(es.dashboard.board.deleted, "title", task.title));
+  };
+
+  const taskActions: TaskActions = { onToggleCompleted: handleToggleCompleted, onDelete: handleDeleteTask };
 
   //==========================LOGOUT==============================================================
   const logout = async () => {
@@ -348,7 +375,7 @@ export default function DashboardPage() {
                 weekStart={weekStart}
                 today={currentDay}
                 onAddTask={openNewTaskIn}
-                onToggleCompleted={handleToggleCompleted}
+                taskActions={taskActions}
               />
             </div>
           </>

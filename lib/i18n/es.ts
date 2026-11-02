@@ -61,6 +61,11 @@ export const es = {
     },
   },
 
+  // JV-1 (C1): confirmation dialog, shared by every screen
+  confirm: {
+    cancel: "Cancelar",
+  },
+
   dashboard: {
     user: {
       // Labels
@@ -84,9 +89,15 @@ export const es = {
       completedLabel: "Hecha",
       overdue: "atrasada",
       urgentLabel: "Urgente:",
-      markedDone: "«{title}» marcada como hecha",
-      markedPending: "«{title}» marcada como pendiente",
+      markedDone: "{title} marcada como hecha",
+      markedPending: "{title} marcada como pendiente",
       undo: "Deshacer",
+      // JV-1 (C1): delete
+      deleteTaskLabel: "Eliminar tarea: {title}",
+      deleteTitle: "¿Eliminar {title}?",
+      deleteMessage: "Se borra para siempre. No se puede deshacer.",
+      deleteConfirm: "Eliminar",
+      deleted: "{title} eliminada",
     },
 
     week: {
@@ -113,7 +124,7 @@ export const es = {
       add: "+ Área",
       nameLabel: "Nombre del área nueva",
       namePlaceholder: "Ej.: Inglés",
-      created: "Área «{name}» creada",
+      created: "Área {name} creada",
     },
 
     newTask: {

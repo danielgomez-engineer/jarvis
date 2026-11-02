@@ -1,5 +1,5 @@
 import TaskCard from "./TaskCard";
-import { Task } from "./types";
+import { Task, TaskActions } from "./types";
 
 type BoardCellProps = {
   tasks: Task[];
@@ -8,11 +8,11 @@ type BoardCellProps = {
   isToday: boolean;
   // Read by screen readers, e.g. "Inglés, mié 28"
   label: string;
-  onToggleCompleted: (task: Task) => void;
+  taskActions: TaskActions;
 };
 
 //=====JV-1: ONE CELL = ONE AREA × ONE DAY (or × "Sin fecha")=====
-export default function BoardCell({ tasks, overdueTasks = [], isToday, label, onToggleCompleted }: BoardCellProps) {
+export default function BoardCell({ tasks, overdueTasks = [], isToday, label, taskActions }: BoardCellProps) {
   const hasTasks = overdueTasks.length > 0 || tasks.length > 0;
 
   return (
@@ -26,10 +26,10 @@ export default function BoardCell({ tasks, overdueTasks = [], isToday, label, on
         <ul className="space-y-1">
           {/* "overdue-" prefix: the same task can also be in its own day, so the keys must differ */}
           {overdueTasks.map((task) => (
-            <TaskCard key={`overdue-${task.id}`} task={task} onToggleCompleted={onToggleCompleted} showOverdue />
+            <TaskCard key={`overdue-${task.id}`} task={task} actions={taskActions} showOverdue />
           ))}
           {tasks.map((task) => (
-            <TaskCard key={task.id} task={task} onToggleCompleted={onToggleCompleted} />
+            <TaskCard key={task.id} task={task} actions={taskActions} />
           ))}
         </ul>
       )}
