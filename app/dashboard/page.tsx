@@ -8,10 +8,14 @@ import { translateError, translateText } from "@/lib/i18n/traslate";
 import { ApiResult, apiRequest } from "@/lib/api/request";
 import { addDays, startOfWeek, today } from "@/lib/dates/week";
 import AreaSelector from "@/components/board/AreaSelector";
+import BoardError from "@/components/board/BoardError";
 import BoardGrid from "@/components/board/BoardGrid";
+import BoardSkeleton from "@/components/board/BoardSkeleton";
+import FirstAreaForm from "@/components/board/FirstAreaForm";
 import NewTaskForm from "@/components/board/NewTaskForm";
 import WeekNav from "@/components/board/WeekNav";
 import { Area, Task } from "@/components/board/types";
+import { ErrorCode } from "@/lib/errors/codes";
 
 type BoardStatus = "loading" | "ready" | "error";
 type ApiFailure = Extract<ApiResult<unknown>, { ok: false }>;
@@ -21,6 +25,8 @@ const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus
 // Errors stay longer than the global 4s so they can be read; undo needs time to be pressed (ESTILOS §4.J)
 const ERROR_TOAST_MS = 7000;
 const UNDO_TOAST_MS = 5000;
+// Same id = Sonner replaces the toast: several requests failing with 401 at once show ONE "session expired"
+const SESSION_TOAST_ID = "session-expired";
 
 // Asks for the areas and that week's tasks at the same time. Doesn't touch the screen.
 // "today" also brings the overdue tasks from older weeks (they show up in "Hoy").
@@ -42,6 +48,10 @@ export default function DashboardPage() {
   const [areas, setAreas] = useState<Area[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [status, setStatus] = useState<BoardStatus>("loading");
+  // Why the first load failed (shown in the error box)
+  const [loadErrorCode, setLoadErrorCode] = useState<ErrorCode | undefined>(undefined);
+  // Another week is on its way: the current board dims a little until it arrives
+  const [weekLoading, setWeekLoading] = useState(false);
   // null = every area is visible
   const [selectedAreaId, setSelectedAreaId] = useState<number | null>(null);
   const [newTaskOpen, setNewTaskOpen] = useState(false);
@@ -54,12 +64,19 @@ export default function DashboardPage() {
   const latestLoad = useRef(0);
   // The week asked for last, even if it hasn't arrived yet (so two quick clicks move two weeks)
   const requestedWeek = useRef<string | null>(null);
+  // After the first good load, errors are toasts and the board stays on screen
+  const hasLoaded = useRef(false);
 
-  // Toast with the API error; a 401 anywhere means the session expired → login
+  // Toast with the API error. A 401 anywhere (also in actions) = the session expired → login with a notice (spec 5)
   const showError = useCallback(
     (failure: ApiFailure) => {
+      if (failure.status === 401) {
+        toast.error(translateError(failure.code), { id: SESSION_TOAST_ID, duration: ERROR_TOAST_MS });
+        router.push("/login");
+        return;
+      }
+
       toast.error(translateError(failure.code), { duration: ERROR_TOAST_MS });
-      if (failure.status === 401) router.push("/login");
     },
     [router],
   );
@@ -74,15 +91,25 @@ export default function DashboardPage() {
       fetchWeek(start).then(({ areasResult, tasksResult }) => {
         if (loadId !== latestLoad.current) return;
 
+        setWeekLoading(false);
+
         if (!areasResult.ok || !tasksResult.ok) {
-          showError(!areasResult.ok ? areasResult : (tasksResult as ApiFailure));
+          const failure = !areasResult.ok ? areasResult : (tasksResult as ApiFailure);
           requestedWeek.current = null;
-          // First load failed → error screen. A later week failed → keep showing the current one.
-          setStatus((current) => (current === "ready" ? current : "error"));
+
+          // First load failed (and it's not the session) → error box with "Reintentar".
+          // A later week failed → toast, and the current week stays on screen.
+          if (hasLoaded.current || failure.status === 401) {
+            showError(failure);
+          } else {
+            setLoadErrorCode(failure.code);
+            setStatus("error");
+          }
           return;
         }
 
         // Week, areas and tasks change together, so the screen never mixes two weeks
+        hasLoaded.current = true;
         setWeekStart(start);
         setAreas(areasResult.data);
         setTasks(tasksResult.data);
@@ -108,14 +135,24 @@ export default function DashboardPage() {
     loadUserName();
   }, [loadWeek, loadUserName]);
 
+  // Called from clicks and keys (never from an effect), so it can mark the board as "loading another week"
+  const goToWeek = useCallback(
+    (start: string) => {
+      setWeekLoading(true);
+      loadWeek(start);
+    },
+    [loadWeek],
+  );
+
   const moveWeeks = useCallback(
     (amount: number) => {
       const from = requestedWeek.current ?? weekStart;
-      if (from) loadWeek(addDays(from, amount * 7));
+      if (from) goToWeek(addDays(from, amount * 7));
     },
-    [loadWeek, weekStart],
+    [goToWeek, weekStart],
   );
 
+  // Back to the skeleton while it tries again
   const retry = () => {
     setStatus("loading");
     loadWeek(startOfWeek(today()));
@@ -165,17 +202,26 @@ export default function DashboardPage() {
     setNewTaskAreaId(null);
   };
 
-  const handleCreateArea = async (name: string): Promise<boolean> => {
+  const createArea = async (name: string): Promise<Area | null> => {
     const result = await apiRequest<Area>("/api/areas", { method: "POST", body: { name } });
 
     if (!result.ok) {
       showError(result);
-      return false;
+      return null;
     }
 
     setAreas((current) => [...current, result.data]);
     toast.success(translateText(es.dashboard.areas.created, { name: result.data.name }));
-    return true;
+    return result.data;
+  };
+
+  const handleCreateArea = async (name: string): Promise<boolean> => (await createArea(name)) !== null;
+
+  // JV-1 (U2.4.3): after the first area, the focus goes straight to its first task (spec 5)
+  const handleCreateFirstArea = async (name: string): Promise<boolean> => {
+    const area = await createArea(name);
+    if (area) openNewTaskIn(area.id);
+    return area !== null;
   };
 
   const handleCreateTask = async (title: string): Promise<boolean> => {
@@ -263,27 +309,15 @@ export default function DashboardPage() {
       <main className="space-y-4 px-4 py-6 sm:px-8">
         <h1 className="sr-only">{es.dashboard.board.title}</h1>
 
-        {/* Skeletons, first-time screen and the full error state arrive in U2.4.3 */}
-        {status === "loading" && (
-          <p role="status" className="text-sm text-foreground-secondary">
-            {es.dashboard.board.loading}
-          </p>
-        )}
+        {/* JV-1 (U2.4.3): every state of the screen (spec 5) */}
+        {status === "loading" && <BoardSkeleton />}
 
-        {status === "error" && (
-          <div role="alert" className="flex items-center gap-3 text-sm text-foreground">
-            <p>{es.dashboard.board.loadError}</p>
-            <button
-              type="button"
-              onClick={retry}
-              className={`rounded-control border border-line bg-surface px-3 py-1.5 font-medium transition-colors duration-150 hover:border-line-strong ${FOCUS_RING}`}
-            >
-              {es.dashboard.board.retry}
-            </button>
-          </div>
-        )}
+        {status === "error" && <BoardError code={loadErrorCode} onRetry={retry} />}
 
-        {status === "ready" && weekStart && (
+        {/* First time: one clear action instead of an empty board */}
+        {status === "ready" && areas.length === 0 && <FirstAreaForm onCreate={handleCreateFirstArea} />}
+
+        {status === "ready" && weekStart && areas.length > 0 && (
           <>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <WeekNav
@@ -291,7 +325,7 @@ export default function DashboardPage() {
                 isCurrentWeek={weekStart === startOfWeek(currentDay)}
                 onPrevious={() => moveWeeks(-1)}
                 onNext={() => moveWeeks(1)}
-                onBackToToday={() => loadWeek(startOfWeek(today()))}
+                onBackToToday={() => goToWeek(startOfWeek(today()))}
               />
               {/* key: changing the area remounts the field, so the focus jumps to it */}
               <NewTaskForm
@@ -306,11 +340,17 @@ export default function DashboardPage() {
 
             <AreaSelector areas={areas} selectedAreaId={selectedAreaId} onSelect={selectArea} onCreateArea={handleCreateArea} />
 
-            {areas.length === 0 ? (
-              <p className="text-sm text-foreground-secondary">{es.dashboard.board.noAreas}</p>
-            ) : (
-              <BoardGrid areas={visibleAreas} tasks={tasks} weekStart={weekStart} today={currentDay} onAddTask={openNewTaskIn} onToggleCompleted={handleToggleCompleted} />
-            )}
+            {/* While another week loads, the current one dims (no layout jump) */}
+            <div aria-busy={weekLoading} className={`transition-opacity duration-150 ${weekLoading ? "opacity-60" : ""}`}>
+              <BoardGrid
+                areas={visibleAreas}
+                tasks={tasks}
+                weekStart={weekStart}
+                today={currentDay}
+                onAddTask={openNewTaskIn}
+                onToggleCompleted={handleToggleCompleted}
+              />
+            </div>
           </>
         )}
       </main>

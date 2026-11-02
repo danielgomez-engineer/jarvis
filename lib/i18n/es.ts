@@ -48,7 +48,7 @@ export const es = {
       loginLink: "Inicia sesión",
 
       // Success messages
-      success: "¡Cuenta creada exitosamente!",
+      success: "Cuenta creada. Ya puedes iniciar sesión",
     },
 
     logout: {
@@ -73,9 +73,8 @@ export const es = {
       brand: "Jarvis",
       title: "Tablero de la semana",
       loading: "Cargando tablero...",
-      loadError: "No pudimos cargar tu tablero.",
+      loadError: "No pudimos cargar tu tablero",
       retry: "Reintentar",
-      noAreas: "Crea tu primera área con «+ Área» para empezar.",
       noDate: "Sin fecha",
       todaySuffix: "hoy",
       laneEmpty: "Sin tareas esta semana",
@@ -95,6 +94,17 @@ export const es = {
       next: "Semana siguiente",
       backToToday: "Hoy",
       srPrefix: "Semana del",
+    },
+
+    // JV-1 (U2.4.3): first time, no areas yet (spec 5)
+    firstArea: {
+      title: "¿En qué estás trabajando?",
+      hint: "Crea tu primera área. Justo después le añades su primera tarea.",
+      placeholder: "Ej.: Inglés",
+      suggestionsLabel: "Ideas para empezar",
+      suggestions: ["Estudio", "Trabajo", "Casa", "Proyecto personal"],
+      submit: "Crear área",
+      submitting: "Creando...",
     },
 
     areas: {
