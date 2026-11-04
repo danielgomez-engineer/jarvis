@@ -7,7 +7,8 @@ import { es } from "@/lib/i18n/es";
 import { translateError, translateText } from "@/lib/i18n/traslate";
 import { highlight } from "@/lib/i18n/highlight";
 import { ApiResult, apiRequest } from "@/lib/api/request";
-import { addDays, formatDayLabel, formatDayMonthLabel, startOfWeek, today } from "@/lib/dates/week";
+import { addDays, formatDayLabel, formatDayMonthLabel, startOfWeek, today, weekDays } from "@/lib/dates/week";
+import { useIsPhone } from "@/lib/ui/useIsPhone";
 import AreaSelector from "@/components/board/AreaSelector";
 import { BoardProvider } from "@/components/board/BoardContext";
 import BoardError from "@/components/board/BoardError";
@@ -15,9 +16,10 @@ import BoardGrid from "@/components/board/BoardGrid";
 import BoardSkeleton from "@/components/board/BoardSkeleton";
 import FirstAreaForm from "@/components/board/FirstAreaForm";
 import NewTaskForm from "@/components/board/NewTaskForm";
+import PhoneBoard, { DAY_SLOTS } from "@/components/board/PhoneBoard";
 import WeekNav from "@/components/board/WeekNav";
 import { useConfirm } from "@/components/ConfirmDialog";
-import { Area, Task, TaskActions, TaskMove } from "@/components/board/types";
+import { Area, DaySlot, Task, TaskActions, TaskMove } from "@/components/board/types";
 import { ErrorCode } from "@/lib/errors/codes";
 
 type BoardStatus = "loading" | "ready" | "error";
@@ -41,10 +43,18 @@ async function fetchWeek(start: string) {
   return { areasResult, tasksResult };
 }
 
+// JV-1 (U2.4.4): the phone opens on today when the week has it, else on Monday (spec 2.2)
+function defaultSlot(weekStart: string): DaySlot {
+  const index = weekDays(weekStart).indexOf(today());
+  return index >= 0 ? index : 0;
+}
+
 //=====JV-1: WEEKLY BOARD (replaces the old task list)=====
 export default function DashboardPage() {
   const router = useRouter();
   const confirm = useConfirm();
+  // JV-1 (U2.4.4): below 640px the board is one day at a time (PhoneBoard), not the grid
+  const isPhone = useIsPhone();
 
   // null until the first load: "today" depends on the person's clock,
   // so it's read in the browser and never while the page is prerendered
@@ -63,6 +73,9 @@ export default function DashboardPage() {
   const [newTaskAreaId, setNewTaskAreaId] = useState<number | null>(null);
   const [userName, setUserName] = useState(es.dashboard.user.nameLoading);
   const [loggingOut, setLoggingOut] = useState(false);
+  // The column the phone shows. null = the default (today or Monday), so "Hoy" can go back to it
+  const [phoneSlot, setPhoneSlot] = useState<DaySlot | null>(null);
+  const daySlot = phoneSlot ?? (weekStart ? defaultSlot(weekStart) : 0);
 
   // Fast ‹ › clicks can answer out of order: only the latest request may update the screen
   const latestLoad = useRef(0);
@@ -156,13 +169,28 @@ export default function DashboardPage() {
     [goToWeek, weekStart],
   );
 
+  // "Hoy": the current week and, on the phone, today's column
+  const backToToday = () => {
+    setPhoneSlot(null);
+    goToWeek(startOfWeek(today()));
+  };
+
+  // Phone: one step along the day strip. It stops at "Sin fecha" and Sunday (the week changes with ‹ ›)
+  const moveDays = useCallback(
+    (amount: number) => {
+      const next = DAY_SLOTS[DAY_SLOTS.indexOf(daySlot) + amount];
+      if (next !== undefined) setPhoneSlot(next);
+    },
+    [daySlot],
+  );
+
   // Back to the skeleton while it tries again
   const retry = () => {
     setStatus("loading");
     loadWeek(startOfWeek(today()));
   };
 
-  //==========================KEYBOARD (spec 5): N = new task, ←/→ = week==============================================================
+  //==========================KEYBOARD (spec 5): N = new task, ←/→ = week (day on the phone)==============================================================
   useEffect(() => {
     if (status !== "ready") return;
 
@@ -175,16 +203,16 @@ export default function DashboardPage() {
         // preventDefault so the "n" isn't typed into the field that opens
         e.preventDefault();
         setNewTaskOpen(true);
-      } else if (e.key === "ArrowLeft") {
-        moveWeeks(-1);
-      } else if (e.key === "ArrowRight") {
-        moveWeeks(1);
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        const amount = e.key === "ArrowLeft" ? -1 : 1;
+        if (isPhone) moveDays(amount);
+        else moveWeeks(amount);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [status, moveWeeks]);
+  }, [status, isPhone, moveDays, moveWeeks]);
 
   //==========================CREATE AREA / TASK==============================================================
   // New tasks go to the lane whose "+" was pressed, else the selected area, else the first one (spec 2.3)
@@ -417,7 +445,7 @@ export default function DashboardPage() {
                 isCurrentWeek={weekStart === startOfWeek(currentDay)}
                 onPrevious={() => moveWeeks(-1)}
                 onNext={() => moveWeeks(1)}
-                onBackToToday={() => goToWeek(startOfWeek(today()))}
+                onBackToToday={backToToday}
               />
               {/* key: changing the area remounts the field, so the focus jumps to it */}
               <NewTaskForm
@@ -436,7 +464,20 @@ export default function DashboardPage() {
             <div aria-busy={weekLoading} className={`transition-opacity duration-150 ${weekLoading ? "opacity-60" : ""}`}>
               {/* Every card reads the areas (for "Otra área"), today and the actions from here */}
               <BoardProvider value={{ areas, today: currentDay, taskActions }}>
-                <BoardGrid areas={visibleAreas} tasks={tasks} weekStart={weekStart} today={currentDay} onAddTask={openNewTaskIn} />
+                {/* Only one of the two is drawn: drawing both and hiding one with CSS would duplicate every card */}
+                {isPhone ? (
+                  <PhoneBoard
+                    areas={visibleAreas}
+                    tasks={tasks}
+                    weekStart={weekStart}
+                    today={currentDay}
+                    slot={daySlot}
+                    onSelectSlot={setPhoneSlot}
+                    onAddTask={openNewTaskIn}
+                  />
+                ) : (
+                  <BoardGrid areas={visibleAreas} tasks={tasks} weekStart={weekStart} today={currentDay} onAddTask={openNewTaskIn} />
+                )}
               </BoardProvider>
             </div>
           </>

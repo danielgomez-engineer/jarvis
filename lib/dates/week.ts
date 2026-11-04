@@ -36,6 +36,7 @@ export function weekDays(weekStart: string): string[] {
 }
 
 const weekdayFormat = new Intl.DateTimeFormat("es", { weekday: "short", timeZone: "UTC" });
+const weekdayLetterFormat = new Intl.DateTimeFormat("es", { weekday: "narrow", timeZone: "UTC" });
 const dayMonthFormat = new Intl.DateTimeFormat("es", { day: "numeric", month: "short", timeZone: "UTC" });
 const monthFormat = new Intl.DateTimeFormat("es", { month: "short", timeZone: "UTC" });
 
@@ -43,6 +44,16 @@ const monthFormat = new Intl.DateTimeFormat("es", { month: "short", timeZone: "U
 export function formatDayLabel(day: string): string {
   const date = parseDay(day);
   return `${weekdayFormat.format(date)} ${date.getUTCDate()}`;
+}
+
+// JV-1 (U2.4.4): "2026-11-04" → "X" (the phone's day strip: L M X J V S D)
+export function formatWeekdayLetter(day: string): string {
+  return weekdayLetterFormat.format(parseDay(day));
+}
+
+// "2026-11-04" → 4
+export function dayOfMonth(day: string): number {
+  return parseDay(day).getUTCDate();
 }
 
 // "2026-11-09" → "lun 9 nov": for days outside this week, where "lun 9" alone is ambiguous

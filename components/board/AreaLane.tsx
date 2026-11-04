@@ -4,6 +4,7 @@ import { translateText } from "@/lib/i18n/traslate";
 import { formatDayLabel } from "@/lib/dates/week";
 import AreaDot from "./AreaDot";
 import BoardCell from "./BoardCell";
+import { overdueOf, sortForCell } from "./sortTasks";
 import { Area, Task } from "./types";
 
 type AreaLaneProps = {
@@ -16,25 +17,12 @@ type AreaLaneProps = {
   onAddTask: (areaId: number) => void;
 };
 
-// Inside a cell: pending before done (done ones sink to the bottom), then urgent first, then the manual order (spec 4.2)
-function sortForCell(tasks: Task[]): Task[] {
-  return [...tasks].sort(
-    (a, b) => Number(a.completed) - Number(b.completed) || Number(b.urgent) - Number(a.urgent) || a.position - b.position,
-  );
-}
-
 //=====JV-1: LANE = ONE ROW OF THE BOARD (an area across "Sin fecha" + 7 days)=====
 // Returns its cells without a wrapper so they sit directly in the board's grid.
-// "YYYY-MM-DD" strings sort like dates, so the oldest overdue task goes first
-function sortOverdue(tasks: Task[]): Task[] {
-  return [...tasks].sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""));
-}
-
 export default function AreaLane({ area, tasks, days, today, onAddTask }: AreaLaneProps) {
   // Only this week's days count for the progress (overdue tasks from older weeks don't)
   const weekTasks = tasks.filter((task) => task.dueDate !== null && days.includes(task.dueDate));
-  // Overdue = a past day and not done (spec 4.2). Calculated here, never stored.
-  const overdueTasks = sortOverdue(tasks.filter((task) => task.dueDate !== null && task.dueDate < today && !task.completed));
+  const overdueTasks = overdueOf(tasks, today);
   const undatedTasks = tasks.filter((task) => task.dueDate === null);
   // Nothing visible in the lane this week (overdue ones only show when "Hoy" is in this week)
   const isEmpty = weekTasks.length === 0 && undatedTasks.length === 0 && (!days.includes(today) || overdueTasks.length === 0);

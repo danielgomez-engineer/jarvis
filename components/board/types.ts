@@ -25,6 +25,10 @@ export type TaskMove = {
   areaId?: number;
 };
 
+// JV-1 (U2.4.4): the one column the phone shows: "Sin fecha" or a day of the week (0 = Monday … 6 = Sunday).
+// An index and not a date, so changing the week keeps the same weekday.
+export type DaySlot = "noDate" | number;
+
 // JV-1: what a card can do. The page owns the logic; the cards get it from BoardContext
 export type TaskActions = {
   onToggleCompleted: (task: Task) => void;

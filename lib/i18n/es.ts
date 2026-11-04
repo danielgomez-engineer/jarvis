@@ -136,6 +136,15 @@ export const es = {
       srPrefix: "Semana del",
     },
 
+    // JV-1 (U2.4.4): phone view, one day at a time (spec 2.2)
+    phone: {
+      dayPicker: "Elegir día",
+      emptyToday: "Nada para hoy",
+      emptyDay: "Nada para este día",
+      emptyNoDate: "Nada sin fecha",
+      dayProgressLabel: "{done} de {total} hechas este día",
+    },
+
     // JV-1 (U2.4.3): first time, no areas yet (spec 5)
     firstArea: {
       title: "¿En qué estás trabajando?",

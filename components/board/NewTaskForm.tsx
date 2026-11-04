@@ -55,7 +55,8 @@ export default function NewTaskForm({ targetArea, open, onOpen, onClose, onCreat
       >
         <PlusIcon aria-hidden="true" className="size-4" />
         {es.dashboard.newTask.button}
-        <kbd className="rounded-card bg-white/20 px-1 font-mono text-xs">{es.dashboard.newTask.shortcut}</kbd>
+        {/* A phone has no keyboard for shortcuts, and without it the toolbar fits in one line at 375px */}
+        <kbd className="rounded-card bg-white/20 px-1 font-mono text-xs max-sm:hidden">{es.dashboard.newTask.shortcut}</kbd>
       </button>
     );
   }

@@ -30,10 +30,11 @@ export default function BoardCell({ tasks, overdueTasks = [], isToday, label, fo
     <div
       aria-label={label}
       role="group"
-      // "Hoy" is only the soft background here; its cyan line lives once, on the column header (BoardGrid)
-      className={`min-h-16 space-y-1 rounded-panel p-1.5 ${isToday ? "bg-accent-soft" : "bg-surface-sunken"}`}
+      // "Hoy" is only the soft background here; its cyan line lives once, on the column header (BoardGrid).
+      // Fixed height only on desktop, where empty cells keep the grid even; the phone only draws cells with tasks.
+      className={`space-y-1 sm:min-h-16 rounded-panel p-1.5 ${isToday ? "bg-accent-soft" : "bg-surface-sunken"}`}
     >
-      {/* An empty cell stays empty: a "Nada para hoy" in every lane was noise (it returns in the phone view, U2.4.4) */}
+      {/* An empty cell stays empty: a "Nada para hoy" in every lane was noise (the phone shows it once per day, PhoneBoard) */}
       {(overdueTasks.length > 0 || listed.length > 0) && (
         <ul className="space-y-1">
           {/* "overdue-" prefix: the same task can also be in its own day, so the keys must differ */}
