@@ -11,10 +11,10 @@ export default function BoardSkeleton() {
     <div role="status" aria-busy="true" className="space-y-4">
       <span className="sr-only">{es.dashboard.board.loading}</span>
 
-      {/* Toolbar: week on the left, "Nueva tarea" on the right */}
+      {/* Toolbar: week on the left, "Nueva tarea" on the right (narrower on a phone: no "N" key there) */}
       <div aria-hidden="true" className="flex items-center justify-between">
         <div className="h-8 w-48 rounded-control bg-surface-sunken" />
-        <div className="h-8 w-36 rounded-control bg-surface-sunken" />
+        <div className="h-8 w-28 rounded-control bg-surface-sunken sm:w-36" />
       </div>
 
       {/* Area selector: same height as the real chips (text + padding + underline), so nothing jumps */}
@@ -24,7 +24,25 @@ export default function BoardSkeleton() {
         ))}
       </div>
 
-      <div aria-hidden="true" className="overflow-hidden pb-2">
+      {/* JV-1 (U2.4.4): the server can't know the screen width, so the skeleton picks its shape with CSS:
+          day strip + area sections on a phone, the grid from 640px */}
+      <div aria-hidden="true" className="space-y-3 sm:hidden">
+        <div className="grid grid-cols-8 gap-1">
+          {Array.from({ length: COLUMNS }, (_, slot) => (
+            <div key={slot} className="h-12 rounded-control bg-surface-sunken" />
+          ))}
+        </div>
+        {Array.from({ length: LANES }, (_, lane) => (
+          <div key={lane} className="space-y-1">
+            <div className="flex h-11 items-center px-1">
+              <div className="h-5 w-28 rounded-card bg-surface-sunken" />
+            </div>
+            <div className="h-20 rounded-panel bg-surface-sunken" />
+          </div>
+        ))}
+      </div>
+
+      <div aria-hidden="true" className="hidden overflow-hidden pb-2 sm:block">
         <div className="grid min-w-[72rem] grid-cols-[10rem_minmax(0,1.4fr)_repeat(7,minmax(0,1fr))] gap-1.5">
           {/* Header row ("SIN FECHA", "LUN 2"…): same 22px as the real one */}
           <div />

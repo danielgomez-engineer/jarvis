@@ -19,7 +19,7 @@ export default function BoardGrid({ areas, tasks, weekStart, today, onAddTask }:
   const days = weekDays(weekStart);
 
   return (
-    // The board scrolls sideways inside its box, never the whole page. The phone view arrives in U2.4.4.
+    // The board scrolls sideways inside its box, never the whole page. Below 640px the page shows PhoneBoard instead.
     <div className="overflow-x-auto pb-2">
       {/* "Sin fecha" is the inbox, so it gets more room than a single day */}
       <div className="grid min-w-[72rem] grid-cols-[10rem_minmax(0,1.4fr)_repeat(7,minmax(0,1fr))] gap-1.5">
