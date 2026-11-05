@@ -15,6 +15,8 @@ export const createTaskSchema = z.object({
     areaId: areaIdSchema,
     dueDate: dueDateSchema.optional(),
     urgent: z.boolean().optional(),
+    // JV-1 (U2.5.1): repeats every week on the weekday of dueDate
+    repeatsWeekly: z.boolean().optional(),
 });
 
 // JV-1: PATCH sends only the fields that change, but at least one
