@@ -31,6 +31,10 @@ model Task {
   // JV-1: manual order inside its board cell (area × day)
   position Int       @default(0)
 
+  // JV-1 (U2.5.1): repeats every week on the weekday of dueDate (dueDate = the first time it shows up)
+  repeatsWeekly Boolean          @default(false)
+  completions   TaskCompletion[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -59,4 +63,17 @@ model Area {
 
   // Same name allowed for different users, never twice for the same user
   @@unique([userId, name])
+}
+
+// JV-1 (U2.5.1): one row per day a repeated task was done. No row = pending that day.
+model TaskCompletion {
+  id        Int      @id @default(autoincrement())
+  date      DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  taskId Int
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  // At most once per day: a fast double click can't save it twice
+  @@unique([taskId, date])
 }

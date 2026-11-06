@@ -191,6 +191,7 @@ export const es = {
     AREA_ALREADY_EXISTS: "Ya tienes un área con ese nombre",
     AREA_NOT_FOUND: "No encontramos esa área. Puede que ya se haya eliminado",
     INVALID_AREA_ORDER: "No pudimos guardar el nuevo orden. Recarga e inténtalo de nuevo",
+    NOT_A_REPEAT_DAY: "Esa tarea no se repite ese día",
     USER_NOT_FOUND: "No encontramos tu cuenta",
     INTERNAL_ERROR: "Algo falló en el servidor. Intenta de nuevo en unos segundos",
 

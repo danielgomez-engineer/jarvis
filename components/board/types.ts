@@ -17,6 +17,8 @@ export type Task = {
   urgent: boolean;
   position: number;
   areaId: number;
+  // JV-1 (U2.5.1): shows up every week on the weekday of its dueDate
+  repeatsWeekly: boolean;
 };
 
 // JV-1 (U2.6.1): where a task goes. Only the keys that change: { dueDate } or { areaId }

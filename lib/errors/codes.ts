@@ -13,6 +13,8 @@ export const API_ERROR_CODES = {
   AREA_ALREADY_EXISTS: "AREA_ALREADY_EXISTS",
   AREA_NOT_FOUND: "AREA_NOT_FOUND",
   INVALID_AREA_ORDER: "INVALID_AREA_ORDER",
+  // JV-1 (U2.5.1): repeated tasks
+  NOT_A_REPEAT_DAY: "NOT_A_REPEAT_DAY",
 } as const;
 
 export type ApiErrorCode =

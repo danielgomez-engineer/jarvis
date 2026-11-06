@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma/prisma";
+import { addDays } from "@/lib/dates/week";
+
 
 //=====JV-1: HELPERS FOR TASKS ON THE BOARD=====
 
@@ -12,6 +14,7 @@ export const TASK_FIELDS = {
   urgent: true,
   position: true,
   areaId: true,
+  repeatsWeekly: true,
 } as const;
 
 // "2026-10-31" → midnight UTC. The column is DATE, so Postgres keeps only the day.
@@ -20,18 +23,46 @@ export function toDateOnly(day: string): Date {
 }
 
 // A board cell is area × day (or area × "no date"). A new or moved task goes last.
-export async function nextPositionInCell(areaId: number, dueDate: Date | null): Promise<number> {
+export async function nextPositionInCell(
+  areaId: number,
+  dueDate: Date | null,
+): Promise<number> {
   return prisma.task.count({ where: { areaId, dueDate } });
 }
 
 // The area must exist AND belong to the user; otherwise it's "not found" for them
-export async function userOwnsArea(userId: number, areaId: number): Promise<boolean> {
-  const area = await prisma.area.findFirst({ where: { id: areaId, userId }, select: { id: true } });
+export async function userOwnsArea(
+  userId: number,
+  areaId: number,
+): Promise<boolean> {
+  const area = await prisma.area.findFirst({
+    where: { id: areaId, userId },
+    select: { id: true },
+  });
   return area !== null;
 }
 
 // The API answers with the same day format it receives: "2026-10-31", not "2026-10-31T00:00:00.000Z".
 // That way the UI never builds a Date from it and the time zone can't move the task to another day.
 export function serializeTask<T extends { dueDate: Date | null }>(task: T) {
-  return { ...task, dueDate: task.dueDate ? task.dueDate.toISOString().slice(0, 10) : null };
+  return {
+    ...task,
+    dueDate: task.dueDate ? task.dueDate.toISOString().slice(0, 10) : null,
+  };
 }
+
+// JV-1 (U2.5.1): a repeated task seen from one week. Its dueDate (the first day) becomes this week's day
+// with the same weekday, and it's done only if that day has a completion. The board then treats it like any task.
+export function placeInWeek<
+  T extends { repeatsWeekly: boolean; dueDate: Date | null; completed: boolean; completions: { date: Date }[] },
+>(task: T, weekStart: string) {
+  const { completions, ...rest } = task;
+  if (!task.repeatsWeekly || task.dueDate === null) return rest;
+
+  // getUTCDay(): 0 = Sunday … 6 = Saturday → days since Monday
+  const daysSinceMonday = (task.dueDate.getUTCDay() + 6) % 7;
+  const day = toDateOnly(addDays(weekStart, daysSinceMonday));
+
+  return { ...rest, dueDate: day, completed: completions.some((done) => done.date.getTime() === day.getTime()) };
+}
+

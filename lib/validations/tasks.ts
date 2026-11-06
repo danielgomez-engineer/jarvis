@@ -2,7 +2,8 @@ import {z} from "zod";
 import { DB_INT_MAX, TASK_DESCRIPTION_MAX, TASK_TITLE_MAX, TASK_TITLE_MIN } from "./limits";
 
 // JV-1: day only as "YYYY-MM-DD" (rejects impossible days like 2026-02-30)
-const daySchema = z.iso.date();
+export const daySchema = z.iso.date();
+
 // null = no date
 const dueDateSchema = daySchema.nullable();
 const areaIdSchema = z.number().int().positive().max(DB_INT_MAX);
@@ -15,6 +16,8 @@ export const createTaskSchema = z.object({
     areaId: areaIdSchema,
     dueDate: dueDateSchema.optional(),
     urgent: z.boolean().optional(),
+    // JV-1 (U2.5.1): repeats every week on the weekday of dueDate
+    repeatsWeekly: z.boolean().optional(),
 });
 
 // JV-1: PATCH sends only the fields that change, but at least one
