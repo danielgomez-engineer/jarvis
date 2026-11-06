@@ -7,6 +7,7 @@ import { getFieldErrors } from "@/lib/validations/fieldErrors";
 import {
   TASK_FIELDS,
   nextPositionInCell,
+  placeInWeek,
   serializeTask,
   toDateOnly,
   userOwnsArea,
@@ -44,32 +45,38 @@ export async function GET(request: Request) {
 
     const { weekStart, today } = validation.data;
 
+    const weekFrom = toDateOnly(weekStart);
+    const weekTo = toDateOnly(addDays(weekStart, 6));
+
     // 5. decoded.userId is trustworthy because it came from a token
     //    WE signed — the client can't forge it. Filter tasks by it.
     // JV-1: tasks of that week (Monday to Sunday) + the ones without a date ("Sin fecha")
     //       + overdue ones (before today and not done), even from older weeks: they show up in "Hoy"
+    // JV-1 (U2.5.1): + repeated tasks that started by the end of this week. Never overdue:
+    //       each week is a new chance, so a missed one doesn't pile up.
     const tasks = await prisma.task.findMany({
       where: {
         userId: authResult.userId,
         OR: [
           { dueDate: null },
-          {
-            dueDate: {
-              gte: toDateOnly(weekStart),
-              lte: toDateOnly(addDays(weekStart, 6)),
-            },
-          },
-          ...(today
-            ? [{ dueDate: { lt: toDateOnly(today) }, completed: false }]
-            : []),
+          { repeatsWeekly: false, dueDate: { gte: weekFrom, lte: weekTo } },
+          ...(today ? [{ repeatsWeekly: false, dueDate: { lt: toDateOnly(today) }, completed: false }] : []),
+          { repeatsWeekly: true, dueDate: { lte: weekTo } },
         ],
       },
       orderBy: [{ position: "asc" }, { id: "asc" }],
-      select: TASK_FIELDS,
+      // Only this week's completions: enough to know if this week's day is done
+      select: {
+        ...TASK_FIELDS,
+        completions: { where: { date: { gte: weekFrom, lte: weekTo } }, select: { date: true } },
+      },
     });
 
-    // 6. Respond with the task list.
-    return NextResponse.json(tasks.map(serializeTask), { status: 200 });
+    // 6. Respond with the task list (repeated ones moved to this week's day)
+    return NextResponse.json(
+      tasks.map((task) => serializeTask(placeInWeek(task, weekStart))),
+      { status: 200 },
+    );
   } catch (err) {
     // This outer catch is for real, unexpected server errors
     // (e.g. the database is unreachable) — a genuine 500.

@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma/prisma";
+import { addDays } from "@/lib/dates/week";
+
 
 //=====JV-1: HELPERS FOR TASKS ON THE BOARD=====
 
@@ -48,3 +50,19 @@ export function serializeTask<T extends { dueDate: Date | null }>(task: T) {
     dueDate: task.dueDate ? task.dueDate.toISOString().slice(0, 10) : null,
   };
 }
+
+// JV-1 (U2.5.1): a repeated task seen from one week. Its dueDate (the first day) becomes this week's day
+// with the same weekday, and it's done only if that day has a completion. The board then treats it like any task.
+export function placeInWeek<
+  T extends { repeatsWeekly: boolean; dueDate: Date | null; completed: boolean; completions: { date: Date }[] },
+>(task: T, weekStart: string) {
+  const { completions, ...rest } = task;
+  if (!task.repeatsWeekly || task.dueDate === null) return rest;
+
+  // getUTCDay(): 0 = Sunday … 6 = Saturday → days since Monday
+  const daysSinceMonday = (task.dueDate.getUTCDay() + 6) % 7;
+  const day = toDateOnly(addDays(weekStart, daysSinceMonday));
+
+  return { ...rest, dueDate: day, completed: completions.some((done) => done.date.getTime() === day.getTime()) };
+}
+
