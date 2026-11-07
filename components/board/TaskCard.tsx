@@ -72,6 +72,15 @@ export default function TaskCard({ task, showOverdue = false }: TaskCardProps) {
               <span className="sr-only"> ({es.dashboard.board.hasNote})</span>
             </>
           )}
+          {/* JV-1 (U2.5.2): ↻ = repeats every week. A text mark in secondary color, never an emoji (ESTILOS §2.8, §4.C) */}
+          {task.repeatsWeekly && (
+            <>
+              <span aria-hidden="true" className="ml-1 text-foreground-secondary">
+                ↻
+              </span>
+              <span className="sr-only"> ({es.dashboard.board.repeatsLabel})</span>
+            </>
+          )}
         </p>
 
         {/* Overdue = amber + the word "atrasada", never the color alone (ESTILOS §3.6) */}

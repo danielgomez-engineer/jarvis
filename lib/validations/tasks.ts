@@ -27,6 +27,8 @@ export const updateTaskSchema = z.object({
     urgent: z.boolean(),
     areaId: areaIdSchema,
     position: z.number().int().min(0).max(DB_INT_MAX),
+    // JV-1 (U2.5.2): turn the weekly repeat on or off
+    repeatsWeekly: z.boolean(),
 }).partial().refine((data) => Object.keys(data).length > 0);
 
 // JV-1: GET /api/tasks?weekStart=2026-10-26&today=2026-10-31 → that week's tasks + the ones without a date.

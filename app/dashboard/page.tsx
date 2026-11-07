@@ -358,6 +358,21 @@ export default function DashboardPage() {
     toast.success(highlight(urgent ? es.dashboard.board.markedUrgent : es.dashboard.board.unmarkedUrgent, "title", task.title));
   };
 
+  // JV-1 (U2.5.2): repeat every week on this task's weekday, or stop.
+  // A repeated task's dueDate in the database is its first day, so stopping also sends the day and state
+  // it shows now: it stays where it is instead of jumping back to its first week.
+  const handleToggleRepeat = async (task: Task) => {
+    const repeatsWeekly = !task.repeatsWeekly;
+    const changes: Partial<Task> = repeatsWeekly
+      ? { repeatsWeekly }
+      : { repeatsWeekly, dueDate: task.dueDate, completed: task.completed };
+
+    const updated = await updateTask(task, changes);
+    if (!updated) return;
+
+    toast.success(highlight(repeatsWeekly ? es.dashboard.board.markedRepeat : es.dashboard.board.unmarkedRepeat, "title", task.title));
+  };
+
   //==========================JV-1 (C1): DELETE (asks first)==============================================================
   // Not optimistic: deleting can't be undone, so the card only disappears once the server confirms.
   const handleDeleteTask = async (task: Task) => {
@@ -383,6 +398,7 @@ export default function DashboardPage() {
   const taskActions: TaskActions = {
     onToggleCompleted: handleToggleCompleted,
     onToggleUrgent: handleToggleUrgent,
+    onToggleRepeat: handleToggleRepeat,
     onMove: handleMoveTask,
     onDelete: handleDeleteTask,
   };

@@ -123,6 +123,12 @@ export const es = {
       destinationTomorrow: "mañana",
       markedUrgent: "{title} marcada como urgente",
       unmarkedUrgent: "{title} ya no es urgente",
+      // JV-1 (U2.5.2): weekly repeat
+      repeatsLabel: "Se repite cada semana",
+      repeatAction: "Repetir cada semana",
+      stopRepeatAction: "Dejar de repetir",
+      markedRepeat: "{title} se repite cada semana",
+      unmarkedRepeat: "{title} ya no se repite",
       // Done tasks in "Sin fecha" fold away so the inbox doesn't fill up
       showDoneOne: "Ver 1 hecha",
       showDoneMany: "Ver {count} hechas",
