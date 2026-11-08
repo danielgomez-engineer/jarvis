@@ -31,6 +31,13 @@ export function startOfWeek(day: string): string {
   return addDays(day, -daysSinceMonday);
 }
 
+// JV-1 (U2.5.2): the day of `weekOf`'s week that falls on `day`'s weekday.
+// ("2026-11-02", "2026-11-18") → "2026-11-04": same week as the 2nd, a Wednesday like the 18th
+export function sameWeekdayIn(weekOf: string, day: string): string {
+  const daysSinceMonday = (parseDay(day).getUTCDay() + 6) % 7;
+  return addDays(startOfWeek(weekOf), daysSinceMonday);
+}
+
 export function weekDays(weekStart: string): string[] {
   return Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
 }

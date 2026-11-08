@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma/prisma";
 import { validToken } from "@/lib/auth/token";
 import { updateTaskSchema } from "@/lib/validations/tasks";
-import { API_ERROR_CODES } from "@/lib/errors/codes";
+import { API_ERROR_CODES, FIELD_ERROR_CODES } from "@/lib/errors/codes";
 import { getFieldErrors } from "@/lib/validations/fieldErrors";
 import { DB_INT_MAX } from "@/lib/validations/limits";
 import { TASK_FIELDS, nextPositionInCell, serializeTask, toDateOnly, userOwnsArea } from "@/lib/tasks/cells";
+import { sameWeekdayIn } from "@/lib/dates/week";
 
 //===================================================JV-1: UPDATE TASK=================================================
 export async function PATCH(
@@ -40,12 +41,12 @@ export async function PATCH(
       return NextResponse.json({ code: API_ERROR_CODES.VALIDATION_ERROR, fields: getFieldErrors(validation.error) }, { status: 400 });
     }
 
-    const { completed, urgent, areaId, dueDate, position } = validation.data;
+    const { completed, urgent, areaId, dueDate, position, repeatsWeekly } = validation.data;
 
     // JV-1: read the task first (only if it's the user's) to know its current cell
     const task = await prisma.task.findFirst({
       where: { id: taskId, userId: authResult.userId },
-      select: { areaId: true, dueDate: true },
+      select: { areaId: true, dueDate: true, repeatsWeekly: true },
     });
 
     if (!task) {
@@ -56,12 +57,27 @@ export async function PATCH(
       return NextResponse.json({ code: API_ERROR_CODES.AREA_NOT_FOUND }, { status: 404 });
     }
 
+    // JV-1 (U2.5.2): moving a task that keeps repeating changes only its weekday. Its dueDate (the first day)
+    // stays in the week it started, so it still shows up in the weeks before and their completions still count.
+    const keepsRepeating = task.repeatsWeekly && repeatsWeekly !== false;
+    const newDate =
+      keepsRepeating && dueDate && task.dueDate ? sameWeekdayIn(task.dueDate.toISOString().slice(0, 10), dueDate) : dueDate;
+
     // undefined = don't touch the date; null = remove it
-    const dueDay = dueDate === undefined ? undefined : dueDate === null ? null : toDateOnly(dueDate);
+    const dueDay = newDate === undefined ? undefined : newDate === null ? null : toDateOnly(newDate);
 
     const newAreaId = areaId ?? task.areaId;
     const newDueDay = dueDay === undefined ? task.dueDate : dueDay;
     const changesCell = newAreaId !== task.areaId || newDueDay?.getTime() !== task.dueDate?.getTime();
+
+    // JV-1 (U2.5.2): a repeated task needs a day (its weekday is the one it repeats on),
+    // so it can't go to "Sin fecha", nor start repeating without a date
+    if ((repeatsWeekly ?? task.repeatsWeekly) && newDueDay === null) {
+      return NextResponse.json(
+        { code: API_ERROR_CODES.VALIDATION_ERROR, fields: { dueDate: FIELD_ERROR_CODES.REQUIRED } },
+        { status: 400 },
+      );
+    }
 
     // JV-1: moving to another cell without a position → last in the new cell
     const newPosition = position ?? (changesCell ? await nextPositionInCell(newAreaId, newDueDay) : undefined);
@@ -69,7 +85,7 @@ export async function PATCH(
     //7. we update away the task (Prisma ignores undefined fields)
     const updatedTask = await prisma.task.update({
       where: { id: taskId, userId: authResult.userId },
-      data: { completed, urgent, areaId, dueDate: dueDay, position: newPosition },
+      data: { completed, urgent, areaId, dueDate: dueDay, position: newPosition, repeatsWeekly },
       select: TASK_FIELDS,
     });
 

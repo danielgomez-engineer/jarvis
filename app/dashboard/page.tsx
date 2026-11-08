@@ -7,7 +7,7 @@ import { es } from "@/lib/i18n/es";
 import { translateError, translateText } from "@/lib/i18n/traslate";
 import { highlight } from "@/lib/i18n/highlight";
 import { ApiResult, apiRequest } from "@/lib/api/request";
-import { addDays, formatDayLabel, formatDayMonthLabel, startOfWeek, today, weekDays } from "@/lib/dates/week";
+import { addDays, formatDayLabel, formatDayMonthLabel, sameWeekdayIn, startOfWeek, today, weekDays } from "@/lib/dates/week";
 import { useIsPhone } from "@/lib/ui/useIsPhone";
 import AreaSelector from "@/components/board/AreaSelector";
 import { BoardProvider } from "@/components/board/BoardContext";
@@ -276,27 +276,54 @@ export default function DashboardPage() {
   // The change shows at once; if the server says no, the task goes back to how it was and a toast explains why.
   // The screen never keeps showing something the server didn't save (spec 5).
   // `body` is what the API receives, when it isn't exactly `changes` (undoing a move also restores the position).
-  const updateTask = async (task: Task, changes: Partial<Task>, body: object = changes): Promise<Task | null> => {
-    const replace = (next: Task) => setTasks((current) => current.map((item) => (item.id === task.id ? next : item)));
+  const replaceTask = (next: Task) => setTasks((current) => current.map((item) => (item.id === next.id ? next : item)));
 
-    replace({ ...task, ...changes });
+  const updateTask = async (task: Task, changes: Partial<Task>, body: object = changes): Promise<Task | null> => {
+    replaceTask({ ...task, ...changes });
 
     const result = await apiRequest<Task>(`/api/tasks/${task.id}`, { method: "PATCH", body });
 
     if (!result.ok) {
-      replace(task);
+      replaceTask(task);
       showError(result);
       return null;
     }
 
-    // The server's version: it may have changed more (e.g. the position in the new cell)
-    replace(result.data);
-    return result.data;
+    // The server's version: it may have changed more (e.g. the position in the new cell).
+    // JV-1 (U2.5.2): except for a repeated task, where the server answers its FIRST day and its own `completed`
+    // (unused). While it keeps repeating, the screen stays on the week it shows: same day and check, or,
+    // if it was moved, the new weekday in this same week (pending there: that day has no completion yet).
+    const keepsRepeating = result.data.repeatsWeekly && !("repeatsWeekly" in changes);
+    const movedTo =
+      typeof changes.dueDate === "string" && task.dueDate !== null ? sameWeekdayIn(task.dueDate, changes.dueDate) : null;
+    const saved = keepsRepeating
+      ? { ...result.data, dueDate: movedTo ?? task.dueDate, completed: movedTo ? false : task.completed }
+      : result.data;
+
+    replaceTask(saved);
+    return saved;
+  };
+
+  // JV-1 (U2.5.2): a repeated task is done one day at a time: the check stamps or removes that day's
+  // completion (PUT/DELETE, U2.5.1) instead of touching `completed`. Optimistic, like any other change.
+  const setRepeatDone = async (task: Task, completed: boolean): Promise<Task | null> => {
+    const next = { ...task, completed };
+    replaceTask(next);
+
+    const result = await apiRequest(`/api/tasks/${task.id}/completions/${task.dueDate}`, { method: completed ? "PUT" : "DELETE" });
+
+    if (!result.ok) {
+      replaceTask(task);
+      showError(result);
+      return null;
+    }
+
+    return next;
   };
 
   //==========================JV-1 (U2.4.2): COMPLETE / UNDO==============================================================
   const setTaskCompleted = async (task: Task, completed: boolean, offerUndo: boolean) => {
-    const updated = await updateTask(task, { completed });
+    const updated = task.repeatsWeekly ? await setRepeatDone(task, completed) : await updateTask(task, { completed });
     if (!updated || !offerUndo) return;
 
     // Says what happened, with the task's name (ESTILOS §4.J)
@@ -358,6 +385,21 @@ export default function DashboardPage() {
     toast.success(highlight(urgent ? es.dashboard.board.markedUrgent : es.dashboard.board.unmarkedUrgent, "title", task.title));
   };
 
+  // JV-1 (U2.5.2): repeat every week on this task's weekday, or stop.
+  // A repeated task's dueDate in the database is its first day, so stopping also sends the day and state
+  // it shows now: it stays where it is instead of jumping back to its first week.
+  const handleToggleRepeat = async (task: Task) => {
+    const repeatsWeekly = !task.repeatsWeekly;
+    const changes: Partial<Task> = repeatsWeekly
+      ? { repeatsWeekly }
+      : { repeatsWeekly, dueDate: task.dueDate, completed: task.completed };
+
+    const updated = await updateTask(task, changes);
+    if (!updated) return;
+
+    toast.success(highlight(repeatsWeekly ? es.dashboard.board.markedRepeat : es.dashboard.board.unmarkedRepeat, "title", task.title));
+  };
+
   //==========================JV-1 (C1): DELETE (asks first)==============================================================
   // Not optimistic: deleting can't be undone, so the card only disappears once the server confirms.
   const handleDeleteTask = async (task: Task) => {
@@ -383,6 +425,7 @@ export default function DashboardPage() {
   const taskActions: TaskActions = {
     onToggleCompleted: handleToggleCompleted,
     onToggleUrgent: handleToggleUrgent,
+    onToggleRepeat: handleToggleRepeat,
     onMove: handleMoveTask,
     onDelete: handleDeleteTask,
   };

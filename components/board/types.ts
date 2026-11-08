@@ -35,6 +35,7 @@ export type DaySlot = "noDate" | number;
 export type TaskActions = {
   onToggleCompleted: (task: Task) => void;
   onToggleUrgent: (task: Task) => void;
+  onToggleRepeat: (task: Task) => void;
   onMove: (task: Task, move: TaskMove) => void;
   onDelete: (task: Task) => void;
 };

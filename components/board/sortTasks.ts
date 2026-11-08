@@ -10,9 +10,10 @@ export function sortForCell(tasks: Task[]): Task[] {
 }
 
 // Overdue = a past day and not done (spec 4.2). Calculated here, never stored.
+// A repeated task is never overdue: next week is a new chance, so a missed day doesn't pile up (U2.5.2).
 // "YYYY-MM-DD" strings sort like dates, so the oldest overdue task goes first
 export function overdueOf(tasks: Task[], today: string): Task[] {
   return tasks
-    .filter((task) => task.dueDate !== null && task.dueDate < today && !task.completed)
+    .filter((task) => task.dueDate !== null && task.dueDate < today && !task.completed && !task.repeatsWeekly)
     .sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""));
 }

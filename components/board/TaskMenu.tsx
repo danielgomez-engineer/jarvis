@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 import {
+  ArrowPathIcon,
   ArrowRightIcon,
   CalendarDaysIcon,
   ChevronRightIcon,
@@ -215,7 +216,8 @@ export default function TaskMenu({ task, ref }: TaskMenuProps) {
               <span className="flex-1">{es.dashboard.board.movePickDay}</span>
               <ChevronRightIcon aria-hidden="true" className="size-4 shrink-0 text-foreground-secondary" />
             </button>
-            {task.dueDate !== null && (
+            {/* A repeated task always needs a day (the API answers 400), so it can't go to "Sin fecha" */}
+            {task.dueDate !== null && !task.repeatsWeekly && (
               <button type="button" className={ITEM} onClick={() => closeAndRun(() => taskActions.onMove(task, { dueDate: null }))}>
                 <InboxIcon aria-hidden="true" className="size-4 shrink-0" />
                 {es.dashboard.board.moveNoDate}
@@ -234,6 +236,14 @@ export default function TaskMenu({ task, ref }: TaskMenuProps) {
               <ExclamationCircleIcon aria-hidden="true" className="size-4 shrink-0" />
               {task.urgent ? es.dashboard.board.unmarkUrgent : es.dashboard.board.markUrgent}
             </button>
+            {/* JV-1 (U2.5.2): only a task with a day can repeat (its weekday is the one it repeats on).
+                A done task can't start repeating: from then on each week has its own check, so it would show as pending. */}
+            {task.dueDate !== null && (task.repeatsWeekly || !task.completed) && (
+              <button type="button" className={ITEM} onClick={() => closeAndRun(() => taskActions.onToggleRepeat(task))}>
+                <ArrowPathIcon aria-hidden="true" className="size-4 shrink-0" />
+                {task.repeatsWeekly ? es.dashboard.board.stopRepeatAction : es.dashboard.board.repeatAction}
+              </button>
+            )}
 
             <div role="separator" className={SEPARATOR} />
             {/* Red = delete (ESTILOS §2.1). It still asks before deleting (C1). */}
