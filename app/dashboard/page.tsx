@@ -276,27 +276,49 @@ export default function DashboardPage() {
   // The change shows at once; if the server says no, the task goes back to how it was and a toast explains why.
   // The screen never keeps showing something the server didn't save (spec 5).
   // `body` is what the API receives, when it isn't exactly `changes` (undoing a move also restores the position).
-  const updateTask = async (task: Task, changes: Partial<Task>, body: object = changes): Promise<Task | null> => {
-    const replace = (next: Task) => setTasks((current) => current.map((item) => (item.id === task.id ? next : item)));
+  const replaceTask = (next: Task) => setTasks((current) => current.map((item) => (item.id === next.id ? next : item)));
 
-    replace({ ...task, ...changes });
+  const updateTask = async (task: Task, changes: Partial<Task>, body: object = changes): Promise<Task | null> => {
+    replaceTask({ ...task, ...changes });
 
     const result = await apiRequest<Task>(`/api/tasks/${task.id}`, { method: "PATCH", body });
 
     if (!result.ok) {
-      replace(task);
+      replaceTask(task);
       showError(result);
       return null;
     }
 
-    // The server's version: it may have changed more (e.g. the position in the new cell)
-    replace(result.data);
-    return result.data;
+    // The server's version: it may have changed more (e.g. the position in the new cell).
+    // JV-1 (U2.5.2): except for a repeated task, where the server answers its FIRST day and its own `completed`
+    // (unused): unless this change moved it or switched the repeat, keep the day and check this week shows.
+    const keepsWeekDay = result.data.repeatsWeekly && !("dueDate" in changes) && !("repeatsWeekly" in changes);
+    const saved = keepsWeekDay ? { ...result.data, dueDate: task.dueDate, completed: task.completed } : result.data;
+
+    replaceTask(saved);
+    return saved;
+  };
+
+  // JV-1 (U2.5.2): a repeated task is done one day at a time: the check stamps or removes that day's
+  // completion (PUT/DELETE, U2.5.1) instead of touching `completed`. Optimistic, like any other change.
+  const setRepeatDone = async (task: Task, completed: boolean): Promise<Task | null> => {
+    const next = { ...task, completed };
+    replaceTask(next);
+
+    const result = await apiRequest(`/api/tasks/${task.id}/completions/${task.dueDate}`, { method: completed ? "PUT" : "DELETE" });
+
+    if (!result.ok) {
+      replaceTask(task);
+      showError(result);
+      return null;
+    }
+
+    return next;
   };
 
   //==========================JV-1 (U2.4.2): COMPLETE / UNDO==============================================================
   const setTaskCompleted = async (task: Task, completed: boolean, offerUndo: boolean) => {
-    const updated = await updateTask(task, { completed });
+    const updated = task.repeatsWeekly ? await setRepeatDone(task, completed) : await updateTask(task, { completed });
     if (!updated || !offerUndo) return;
 
     // Says what happened, with the task's name (ESTILOS §4.J)
