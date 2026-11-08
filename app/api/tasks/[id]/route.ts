@@ -6,6 +6,7 @@ import { API_ERROR_CODES, FIELD_ERROR_CODES } from "@/lib/errors/codes";
 import { getFieldErrors } from "@/lib/validations/fieldErrors";
 import { DB_INT_MAX } from "@/lib/validations/limits";
 import { TASK_FIELDS, nextPositionInCell, serializeTask, toDateOnly, userOwnsArea } from "@/lib/tasks/cells";
+import { sameWeekdayIn } from "@/lib/dates/week";
 
 //===================================================JV-1: UPDATE TASK=================================================
 export async function PATCH(
@@ -56,8 +57,14 @@ export async function PATCH(
       return NextResponse.json({ code: API_ERROR_CODES.AREA_NOT_FOUND }, { status: 404 });
     }
 
+    // JV-1 (U2.5.2): moving a task that keeps repeating changes only its weekday. Its dueDate (the first day)
+    // stays in the week it started, so it still shows up in the weeks before and their completions still count.
+    const keepsRepeating = task.repeatsWeekly && repeatsWeekly !== false;
+    const newDate =
+      keepsRepeating && dueDate && task.dueDate ? sameWeekdayIn(task.dueDate.toISOString().slice(0, 10), dueDate) : dueDate;
+
     // undefined = don't touch the date; null = remove it
-    const dueDay = dueDate === undefined ? undefined : dueDate === null ? null : toDateOnly(dueDate);
+    const dueDay = newDate === undefined ? undefined : newDate === null ? null : toDateOnly(newDate);
 
     const newAreaId = areaId ?? task.areaId;
     const newDueDay = dueDay === undefined ? task.dueDate : dueDay;

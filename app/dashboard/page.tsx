@@ -7,7 +7,7 @@ import { es } from "@/lib/i18n/es";
 import { translateError, translateText } from "@/lib/i18n/traslate";
 import { highlight } from "@/lib/i18n/highlight";
 import { ApiResult, apiRequest } from "@/lib/api/request";
-import { addDays, formatDayLabel, formatDayMonthLabel, startOfWeek, today, weekDays } from "@/lib/dates/week";
+import { addDays, formatDayLabel, formatDayMonthLabel, sameWeekdayIn, startOfWeek, today, weekDays } from "@/lib/dates/week";
 import { useIsPhone } from "@/lib/ui/useIsPhone";
 import AreaSelector from "@/components/board/AreaSelector";
 import { BoardProvider } from "@/components/board/BoardContext";
@@ -291,9 +291,14 @@ export default function DashboardPage() {
 
     // The server's version: it may have changed more (e.g. the position in the new cell).
     // JV-1 (U2.5.2): except for a repeated task, where the server answers its FIRST day and its own `completed`
-    // (unused): unless this change moved it or switched the repeat, keep the day and check this week shows.
-    const keepsWeekDay = result.data.repeatsWeekly && !("dueDate" in changes) && !("repeatsWeekly" in changes);
-    const saved = keepsWeekDay ? { ...result.data, dueDate: task.dueDate, completed: task.completed } : result.data;
+    // (unused). While it keeps repeating, the screen stays on the week it shows: same day and check, or,
+    // if it was moved, the new weekday in this same week (pending there: that day has no completion yet).
+    const keepsRepeating = result.data.repeatsWeekly && !("repeatsWeekly" in changes);
+    const movedTo =
+      typeof changes.dueDate === "string" && task.dueDate !== null ? sameWeekdayIn(task.dueDate, changes.dueDate) : null;
+    const saved = keepsRepeating
+      ? { ...result.data, dueDate: movedTo ?? task.dueDate, completed: movedTo ? false : task.completed }
+      : result.data;
 
     replaceTask(saved);
     return saved;
