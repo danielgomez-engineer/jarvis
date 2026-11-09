@@ -77,7 +77,7 @@ export default function RegisterPage() {
         // EXITO: Redirigir al login
         router.push("/login");
       }, 1000);
-    } catch (err) {
+    } catch {
       setError(translateError("NETWORK_ERROR"));
     } finally {
       setLoading(false);

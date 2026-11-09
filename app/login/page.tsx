@@ -64,7 +64,7 @@ export default function LoginPage() {
       //EXITO como se uso httpOnly cookies, el navegador guardo  el token automaticamente
       //redirigir al dashboard
       router.push("/dashboard");
-    } catch (err) {
+    } catch {
       setError(translateError("NETWORK_ERROR"));
     } finally {
       setLoading(false);

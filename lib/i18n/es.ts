@@ -96,6 +96,7 @@ export const es = {
       deleteTaskLabel: "Eliminar tarea: {title}",
       deleteTitle: "¿Eliminar {title}?",
       deleteMessage: "Se borra para siempre. No se puede deshacer.",
+      deleteRepeatMessage: "Desaparece de todas las semanas, también de las que ya hiciste. No se puede deshacer.",
       deleteConfirm: "Eliminar",
       deleted: "{title} eliminada",
       // JV-1 (U2.6.1): task menu "⋯"

@@ -25,8 +25,10 @@ export async function POST(request: Request) {
     const { email, password, name } = validation.data;
 
     //3. VALIDAR SI EL USUARIO YA EXISTE
-    const existUser = await prisma.user.findUnique({
-      where: { email },
+    // JV-1: with any capitalization (older accounts may have been saved with capitals)
+    const existUser = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+      select: { id: true },
     });
     if (existUser) {
       return NextResponse.json(
