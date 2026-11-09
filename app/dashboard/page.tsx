@@ -278,8 +278,23 @@ export default function DashboardPage() {
   // `body` is what the API receives, when it isn't exactly `changes` (undoing a move also restores the position).
   const replaceTask = (next: Task) => setTasks((current) => current.map((item) => (item.id === next.id ? next : item)));
 
+  // JV-1 (U2.5.2): a repeated task is shown the way GET shows it (placeInWeek): on its weekday inside the week
+  // on screen. Needed because the server answers its FIRST day and its own (unused) `completed`, and because
+  // a change can leave it outside this week (e.g. "Repetir" on an overdue task from an older week).
+  // Its check stays as it was, unless it just moved or just started repeating (that day has no completion yet).
+  const showInWeek = (shown: Task, before: Task, changes: Partial<Task>): Task => {
+    if (!shown.repeatsWeekly || !shown.dueDate || !weekStart) return shown;
+
+    const newDay = "dueDate" in changes || "repeatsWeekly" in changes;
+    return {
+      ...shown,
+      dueDate: sameWeekdayIn(weekStart, shown.dueDate),
+      completed: changes.completed ?? (newDay ? false : before.completed),
+    };
+  };
+
   const updateTask = async (task: Task, changes: Partial<Task>, body: object = changes): Promise<Task | null> => {
-    replaceTask({ ...task, ...changes });
+    replaceTask(showInWeek({ ...task, ...changes }, task, changes));
 
     const result = await apiRequest<Task>(`/api/tasks/${task.id}`, { method: "PATCH", body });
 
@@ -289,17 +304,8 @@ export default function DashboardPage() {
       return null;
     }
 
-    // The server's version: it may have changed more (e.g. the position in the new cell).
-    // JV-1 (U2.5.2): except for a repeated task, where the server answers its FIRST day and its own `completed`
-    // (unused). While it keeps repeating, the screen stays on the week it shows: same day and check, or,
-    // if it was moved, the new weekday in this same week (pending there: that day has no completion yet).
-    const keepsRepeating = result.data.repeatsWeekly && !("repeatsWeekly" in changes);
-    const movedTo =
-      typeof changes.dueDate === "string" && task.dueDate !== null ? sameWeekdayIn(task.dueDate, changes.dueDate) : null;
-    const saved = keepsRepeating
-      ? { ...result.data, dueDate: movedTo ?? task.dueDate, completed: movedTo ? false : task.completed }
-      : result.data;
-
+    // The server's version: it may have changed more (e.g. the position in the new cell)
+    const saved = showInWeek(result.data, task, changes);
     replaceTask(saved);
     return saved;
   };
@@ -370,7 +376,8 @@ export default function DashboardPage() {
       action: {
         label: es.dashboard.board.undo,
         onClick: () => {
-          updateTask(updated, before, { ...before, position: task.position });
+          // `completed` only for the screen: a repeated task goes back to a day that may already be done
+          updateTask(updated, { ...before, completed: task.completed }, { ...before, position: task.position });
           focusTaskMenu(task.id);
         },
       },
@@ -406,7 +413,8 @@ export default function DashboardPage() {
     const confirmed = await confirm({
       // The name in red: it is what gets deleted (red = delete, ESTILOS §2.1)
       title: highlight(es.dashboard.board.deleteTitle, "title", task.title, "text-danger"),
-      message: es.dashboard.board.deleteMessage,
+      // JV-1 (U2.5.2): a repeated task is one row for every week: deleting it removes all of them and their history
+      message: task.repeatsWeekly ? es.dashboard.board.deleteRepeatMessage : es.dashboard.board.deleteMessage,
       confirmLabel: es.dashboard.board.deleteConfirm,
     });
     if (!confirmed) return;

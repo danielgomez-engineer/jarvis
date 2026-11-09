@@ -26,9 +26,14 @@ export async function POST(request: Request) {
     const { email, password } = validation.data;
 
     // 3. VALIDAR EN LA BD SI EXISTE EL USUARIO
-    const user = await prisma.user.findUnique({
-      where: { email },
-    });
+    // JV-1: emails are saved in lowercase since 2026-11-09, but older accounts may have capitals.
+    // The exact match wins (two old accounts could differ only in capitals); otherwise, any capitalization.
+    const user =
+      (await prisma.user.findUnique({ where: { email } })) ??
+      (await prisma.user.findFirst({
+        where: { email: { equals: email, mode: "insensitive" } },
+        orderBy: { id: "asc" },
+      }));
     if (!user) {
       return NextResponse.json(
         { code: API_ERROR_CODES.INVALID_CREDENTIALS },

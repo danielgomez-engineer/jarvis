@@ -4,7 +4,7 @@ import { validToken } from "@/lib/auth/token";
 import { API_ERROR_CODES } from "@/lib/errors/codes";
 
 
-export async function GET(request: Request) {
+export async function GET() {
     try {
             // 1. check token auxiliar method
     const authResult = await validToken();
