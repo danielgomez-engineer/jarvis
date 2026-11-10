@@ -89,14 +89,14 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                 ref={cancelRef}
                 type="button"
                 onClick={() => close(false)}
-                className="rounded-control border border-line bg-surface px-3 py-2 text-sm font-medium text-foreground transition-colors duration-150 hover:border-line-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="rounded-control border border-line bg-surface px-3 py-2 text-sm font-medium text-foreground transition-colors duration-150 hover:border-line-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent max-sm:min-h-11"
               >
                 {es.confirm.cancel}
               </button>
               <button
                 type="button"
                 onClick={() => close(true)}
-                className="rounded-control bg-danger px-3 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-danger-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="rounded-control bg-danger px-3 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-danger-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent max-sm:min-h-11"
               >
                 {options.confirmLabel}
               </button>

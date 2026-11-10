@@ -11,14 +11,15 @@ export default function BoardSkeleton() {
     <div role="status" aria-busy="true" className="space-y-4">
       <span className="sr-only">{es.dashboard.board.loading}</span>
 
-      {/* Toolbar: week on the left, "Nueva tarea" on the right (narrower on a phone: no "N" key there) */}
-      <div aria-hidden="true" className="flex items-center justify-between">
-        <div className="h-8 w-48 rounded-control bg-surface-sunken" />
-        <div className="h-8 w-28 rounded-control bg-surface-sunken sm:w-36" />
+      {/* Toolbar: week on the left, "Nueva tarea" on the right. On a phone both are 44px tall
+          and don't fit in one line, so the button wraps below, like the real one */}
+      <div aria-hidden="true" className="flex flex-wrap items-center justify-between gap-3">
+        <div className="h-11 w-52 rounded-control bg-surface-sunken sm:h-8 sm:w-48" />
+        <div className="h-11 w-32 rounded-control bg-surface-sunken sm:h-8 sm:w-36" />
       </div>
 
-      {/* Area selector: same height as the real chips (text + padding + underline), so nothing jumps */}
-      <div aria-hidden="true" className="flex h-[38px] items-center gap-4">
+      {/* Area selector: same height as the real chips (text + padding + underline; 44px on a phone), so nothing jumps */}
+      <div aria-hidden="true" className="flex h-11 items-center gap-4 sm:h-[38px]">
         {[16, 20, 16, 20].map((width, index) => (
           <div key={index} style={{ width: `${width * 4}px` }} className="h-5 rounded-card bg-surface-sunken" />
         ))}

@@ -52,7 +52,7 @@ export default function BoardCell({ tasks, overdueTasks = [], isToday, label, fo
           type="button"
           aria-expanded={showDone}
           onClick={() => setShowDone((current) => !current)}
-          className="flex items-center gap-1 rounded-control px-1 py-0.5 text-xs text-foreground-secondary transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+          className="flex items-center gap-1 rounded-control px-1 py-0.5 text-xs max-sm:min-h-11 text-foreground-secondary transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
         >
           <ChevronDownIcon
             aria-hidden="true"

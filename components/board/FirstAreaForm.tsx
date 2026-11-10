@@ -9,7 +9,8 @@ type FirstAreaFormProps = {
   onCreate: (name: string) => Promise<boolean>;
 };
 
-const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+// max-sm:min-h-11: 44px to tap on a phone (ESTILOS §3.3)
+const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent max-sm:min-h-11";
 
 //=====JV-1 (U2.4.3): FIRST TIME = ONE CLEAR ACTION, NEVER AN EMPTY BOARD (spec 5)=====
 export default function FirstAreaForm({ onCreate }: FirstAreaFormProps) {
@@ -53,7 +54,7 @@ export default function FirstAreaForm({ onCreate }: FirstAreaFormProps) {
           disabled={saving}
           placeholder={es.dashboard.firstArea.placeholder}
           onChange={(e) => setName(e.target.value)}
-          className="min-w-0 flex-1 rounded-control border border-line-strong bg-surface px-3 py-2 text-base sm:text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25 disabled:bg-surface-sunken disabled:text-foreground-muted"
+          className="min-w-0 flex-1 rounded-control border border-line-strong max-sm:min-h-11 bg-surface px-3 py-2 text-base sm:text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25 disabled:bg-surface-sunken disabled:text-foreground-muted"
         />
         <button
           type="submit"
