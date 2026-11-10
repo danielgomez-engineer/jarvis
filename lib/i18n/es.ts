@@ -61,6 +61,15 @@ export const es = {
     },
   },
 
+  // JV-1 (C3): browser tab and search results. Each page adds its own name: "Tablero · Jarvis"
+  meta: {
+    appName: "Jarvis",
+    description: "Tus tareas de la semana, ordenadas por área.",
+    loginTitle: "Iniciar sesión",
+    registerTitle: "Crear cuenta",
+    dashboardTitle: "Tablero",
+  },
+
   // JV-1 (C1): confirmation dialog, shared by every screen
   confirm: {
     cancel: "Cancelar",
