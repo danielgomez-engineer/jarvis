@@ -156,7 +156,7 @@ export default function TaskMenu({ task, ref }: TaskMenuProps) {
         title={es.dashboard.board.menuHint}
         // The page looks for it after a move, to give the keyboard focus back to the card
         data-task-trigger={task.id}
-        className="-m-1 shrink-0 rounded-control p-1 text-foreground-secondary transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent aria-expanded:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100"
+        className="-m-1 shrink-0 rounded-control p-1 text-foreground-secondary transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent max-sm:m-0 max-sm:flex max-sm:size-11 max-sm:items-center max-sm:justify-center max-sm:focus-visible:-outline-offset-2 aria-expanded:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100"
       >
         <EllipsisHorizontalIcon aria-hidden="true" className="size-4" />
       </button>

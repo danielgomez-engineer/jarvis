@@ -25,7 +25,8 @@ import { ErrorCode } from "@/lib/errors/codes";
 type BoardStatus = "loading" | "ready" | "error";
 type ApiFailure = Extract<ApiResult<unknown>, { ok: false }>;
 
-const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+// max-sm:min-h-11: 44px to tap on a phone (ESTILOS §3.3)
+const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent max-sm:min-h-11";
 
 // Errors stay longer than the global 4s so they can be read; undo needs time to be pressed (ESTILOS §4.J)
 const ERROR_TOAST_MS = 7000;

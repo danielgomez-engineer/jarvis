@@ -29,11 +29,13 @@ export default function TaskCard({ task, showOverdue = false }: TaskCardProps) {
           menuRef.current?.open();
         }
       }}
-      className="group flex items-start gap-2 rounded-card border border-line bg-surface px-2 py-1.5 text-sm transition-colors duration-150 hover:border-line-strong"
+      // Phone: no padding, because the check and the "⋯" become 44px boxes at the edges (ESTILOS §3.3).
+      // Two separate 44px targets, so a thumb can't mark the task done while aiming for the menu.
+      className="group flex items-start gap-2 rounded-card border border-line bg-surface px-2 py-1.5 text-sm transition-colors duration-150 hover:border-line-strong max-sm:gap-0 max-sm:p-0"
     >
       {/* JV-1 (U2.4.2): a real checkbox, so a screen reader says "Clase de inglés, casilla, marcada".
           The input is hidden and the circle is drawn; the label makes the whole circle clickable. */}
-      <label className="-m-1 shrink-0 cursor-pointer rounded-full p-1 has-focus-visible:outline-2 has-focus-visible:outline-offset-1 has-focus-visible:outline-accent">
+      <label className="-m-1 shrink-0 cursor-pointer rounded-full p-1 has-focus-visible:outline-2 has-focus-visible:outline-offset-1 has-focus-visible:outline-accent max-sm:m-0 max-sm:flex max-sm:size-11 max-sm:items-center max-sm:justify-center max-sm:rounded-card max-sm:has-focus-visible:-outline-offset-2">
         <input
           type="checkbox"
           className="sr-only"
@@ -53,7 +55,8 @@ export default function TaskCard({ task, showOverdue = false }: TaskCardProps) {
         </span>
       </label>
 
-      <div className="min-w-0 flex-1">
+      {/* Phone: 12px above and below the first 20px line = 44px, aligned with the check and the "⋯" */}
+      <div className="min-w-0 flex-1 max-sm:py-3">
         {/* Done = green check + secondary text, no strikethrough (Daniel, 2026-11-01): it reads "done", not "deleted" */}
         <p className={`break-words ${COMPLETE_TRANSITION} ${task.completed ? "text-foreground-secondary" : "text-foreground"} ${task.urgent ? "font-bold" : ""}`}>
           {/* Urgent = position + weight + "!", never a color (spec 4.1 #7). The reader hears "Urgente:", not "!" */}

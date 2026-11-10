@@ -15,7 +15,8 @@ type AreaSelectorProps = {
   onCreateArea: (name: string) => Promise<boolean>;
 };
 
-const CHIP = "flex shrink-0 items-center gap-2 border-b-2 px-1 py-2 text-sm transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+// Phone: 44px tall so a chip is easy to hit with a thumb (ESTILOS §3.3)
+const CHIP = "flex shrink-0 items-center gap-2 border-b-2 px-1 py-2 text-sm transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent max-sm:min-h-11";
 const CHIP_ACTIVE = "border-accent text-foreground";
 const CHIP_INACTIVE = "border-transparent text-foreground-secondary hover:text-foreground";
 
@@ -80,14 +81,14 @@ export default function AreaSelector({ areas, selectedAreaId, onSelect, onCreate
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === "Escape" && closeForm()}
             onBlur={() => !name.trim() && closeForm()}
-            className="w-40 rounded-control border border-line-strong bg-surface px-2 py-1 text-base sm:text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25 disabled:bg-surface-sunken disabled:text-foreground-muted"
+            className="w-40 rounded-control border border-line-strong max-sm:min-h-11 bg-surface px-2 py-1 text-base sm:text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25 disabled:bg-surface-sunken disabled:text-foreground-muted"
           />
         </form>
       ) : (
         <button
           type="button"
           onClick={() => setAdding(true)}
-          className="shrink-0 rounded-control px-2 py-1 text-sm text-foreground-secondary transition-colors duration-150 hover:bg-surface-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="shrink-0 rounded-control px-2 py-1 text-sm max-sm:min-h-11 text-foreground-secondary transition-colors duration-150 hover:bg-surface-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           {es.dashboard.areas.add}
         </button>

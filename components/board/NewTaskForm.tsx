@@ -18,7 +18,8 @@ type NewTaskFormProps = {
   onCreate: (title: string) => Promise<boolean>;
 };
 
-const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+// Every button and the field get 44px of height on a phone (ESTILOS §3.3)
+const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent max-sm:min-h-11";
 
 //=====JV-1: QUICK CAPTURE: only the title, the task lands in "Sin fecha"=====
 export default function NewTaskForm({ targetArea, open, onOpen, onClose, onCreate }: NewTaskFormProps) {
@@ -82,7 +83,7 @@ export default function NewTaskForm({ targetArea, open, onOpen, onClose, onCreat
           placeholder={es.dashboard.newTask.placeholder}
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={(e) => e.key === "Escape" && close()}
-          className="w-64 rounded-control border border-line-strong bg-surface px-3 py-1.5 text-base sm:text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25 disabled:bg-surface-sunken disabled:text-foreground-muted"
+          className="w-64 rounded-control border border-line-strong max-sm:min-h-11 bg-surface px-3 py-1.5 text-base sm:text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25 disabled:bg-surface-sunken disabled:text-foreground-muted"
         />
         <span className="absolute -bottom-5 right-0 text-xs">
           <CharCounter length={title.length} max={TASK_TITLE_MAX} />
