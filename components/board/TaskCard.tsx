@@ -1,8 +1,10 @@
 import { useRef } from "react";
+import { useDraggable } from "@dnd-kit/core";
 import { Bars3BottomLeftIcon, CheckIcon } from "@heroicons/react/24/outline";
 import { es } from "@/lib/i18n/es";
 import { formatDayLabel } from "@/lib/dates/week";
 import { useBoard } from "./BoardContext";
+import { DragData, NOT_A_DRAG_HANDLE } from "./dragAndDrop";
 import TaskMenu, { TaskMenuHandle } from "./TaskMenu";
 import { Task } from "./types";
 
@@ -10,18 +12,27 @@ type TaskCardProps = {
   task: Task;
   // Only when the card is shown in "Hoy" as overdue: adds "atrasada · lun 26"
   showOverdue?: boolean;
+  // JV-1 (U2.6.2): desktop only, set by DraggableTaskCard
+  ref?: React.Ref<HTMLLIElement>;
+  onMouseDown?: React.MouseEventHandler<HTMLLIElement>;
+  dragging?: boolean;
 };
 
 // 300ms is the one animation "with taste" (ESTILOS §2.6); none if the person asked for reduced motion
 const COMPLETE_TRANSITION = "transition-colors duration-300 motion-reduce:transition-none";
 
+// JV-1 (U2.6.2): while the card floats under the mouse, its place stays as a dashed outline of the same size (ESTILOS §4.C)
+const DRAG_HOLE = "border-dashed border-line-strong *:invisible";
+
 //=====JV-1: TASK CARD (ESTILOS §4.C)=====
-export default function TaskCard({ task, showOverdue = false }: TaskCardProps) {
+export default function TaskCard({ task, showOverdue = false, ref, onMouseDown, dragging = false }: TaskCardProps) {
   const { taskActions } = useBoard();
   const menuRef = useRef<TaskMenuHandle>(null);
 
   return (
     <li
+      ref={ref}
+      onMouseDown={onMouseDown}
       // JV-1 (U2.6.1): "m" opens the menu from anywhere in the card (e.g. with the focus on its check)
       onKeyDown={(e) => {
         if ((e.key === "m" || e.key === "M") && !(e.target as HTMLElement).closest("[popover]")) {
@@ -31,7 +42,7 @@ export default function TaskCard({ task, showOverdue = false }: TaskCardProps) {
       }}
       // Phone: no padding, because the check and the "⋯" become 44px boxes at the edges (ESTILOS §3.3).
       // Two separate 44px targets, so a thumb can't mark the task done while aiming for the menu.
-      className="group flex items-start gap-2 rounded-card border border-line bg-surface px-2 py-1.5 text-sm transition-colors duration-150 hover:border-line-strong max-sm:gap-0 max-sm:p-0"
+      className={`group flex items-start gap-2 rounded-card border px-2 py-1.5 text-sm transition-colors duration-150 max-sm:gap-0 max-sm:p-0 ${dragging ? DRAG_HOLE : "border-line bg-surface hover:border-line-strong"}`}
     >
       {/* JV-1 (U2.4.2): a real checkbox, so a screen reader says "Clase de inglés, casilla, marcada".
           The input is hidden and the circle is drawn; the label makes the whole circle clickable. */}
@@ -97,5 +108,48 @@ export default function TaskCard({ task, showOverdue = false }: TaskCardProps) {
       {/* JV-1 (U2.6.1): one "⋯" with every secondary action (ESTILOS §4.C): move, urgent and delete */}
       <TaskMenu ref={menuRef} task={task} />
     </li>
+  );
+}
+
+type DraggableTaskCardProps = {
+  task: Task;
+  showOverdue?: boolean;
+  // The id of the cell that draws it (dragAndDrop.ts, cellId)
+  fromCell: string;
+};
+
+//=====JV-1 (U2.6.2): A DESKTOP CARD THAT CAN BE DRAGGED TO ANOTHER CELL=====
+// A wrapper, so the phone (which also draws TaskCard) never touches dnd-kit.
+// Mouse only: the keyboard already moves cards with "Mover a…" (M, ESTILOS §3.7). That's why the card
+// doesn't get dnd-kit's button attributes: it would become a button with buttons inside.
+export function DraggableTaskCard({ task, showOverdue = false, fromCell }: DraggableTaskCardProps) {
+  const data: DragData = { task, fromCell, showOverdue };
+  const { setNodeRef, listeners, isDragging } = useDraggable({
+    // The overdue copy in "Hoy" needs its own id: the same task can also be in its own day
+    id: `${showOverdue ? "overdue" : "task"}:${task.id}`,
+    data,
+  });
+
+  return (
+    <TaskCard
+      ref={setNodeRef}
+      task={task}
+      showOverdue={showOverdue}
+      dragging={isDragging}
+      onMouseDown={(event) => {
+        if (!(event.target as Element).closest(NOT_A_DRAG_HANDLE)) listeners?.onMouseDown(event);
+      }}
+    />
+  );
+}
+
+//=====JV-1 (U2.6.2): THE COPY THAT FLOATS UNDER THE MOUSE WHILE DRAGGING (ESTILOS §2.5, §4.C)=====
+// The same card, made inert: it can't be clicked or focused and screen readers skip it
+// (they hear the drag announcements instead, BoardGrid)
+export function TaskCardPreview({ task, showOverdue }: { task: Task; showOverdue: boolean }) {
+  return (
+    <ul inert className="rounded-card shadow-float">
+      <TaskCard task={task} showOverdue={showOverdue} />
+    </ul>
   );
 }

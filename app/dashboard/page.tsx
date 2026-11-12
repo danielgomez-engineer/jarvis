@@ -343,15 +343,23 @@ export default function DashboardPage() {
   const handleToggleCompleted = (task: Task) => setTaskCompleted(task, !task.completed, true);
 
   //==========================JV-1 (U2.6.1): MOVE ("Mover a…") / URGENT==============================================================
-  // "Clase movida a mañana": hoy, mañana, a day of this week ("jue 5"), another week ("lun 9 nov"), Sin fecha or an area
-  const describeMove = (move: TaskMove): string => {
-    if (move.areaId !== undefined) return areas.find((area) => area.id === move.areaId)?.name ?? "";
-    if (!move.dueDate) return es.dashboard.board.noDate;
+  // "Clase movida a mañana": hoy, mañana, a day of this week ("jue 5"), another week ("lun 9 nov") or Sin fecha
+  const describeDay = (dueDate: string | null): string => {
+    if (!dueDate) return es.dashboard.board.noDate;
 
     const now = today();
-    if (move.dueDate === now) return es.dashboard.board.destinationToday;
-    if (move.dueDate === addDays(now, 1)) return es.dashboard.board.destinationTomorrow;
-    return startOfWeek(move.dueDate) === startOfWeek(now) ? formatDayLabel(move.dueDate) : formatDayMonthLabel(move.dueDate);
+    if (dueDate === now) return es.dashboard.board.destinationToday;
+    if (dueDate === addDays(now, 1)) return es.dashboard.board.destinationTomorrow;
+    return startOfWeek(dueDate) === startOfWeek(now) ? formatDayLabel(dueDate) : formatDayMonthLabel(dueDate);
+  };
+
+  // The day, the area ("Clase movida a Inglés") or, after a drag that changed both (U2.6.2), "mañana en Inglés"
+  const describeMove = (move: TaskMove): string => {
+    const areaName = areas.find((area) => area.id === move.areaId)?.name ?? "";
+    if (move.dueDate === undefined) return areaName;
+
+    const day = describeDay(move.dueDate);
+    return move.areaId === undefined ? day : translateText(es.dashboard.board.dayInArea, { day, area: areaName });
   };
 
   // A moved card is drawn again in its new cell, so the old "⋯" (which had the focus) disappears.

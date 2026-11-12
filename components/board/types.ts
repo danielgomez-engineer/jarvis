@@ -21,7 +21,7 @@ export type Task = {
   repeatsWeekly: boolean;
 };
 
-// JV-1 (U2.6.1): where a task goes. Only the keys that change: { dueDate } or { areaId }
+// JV-1 (U2.6.1): where a task goes. Only the keys that change: { dueDate }, { areaId } or both (a drag, U2.6.2)
 export type TaskMove = {
   dueDate?: string | null;
   areaId?: number;

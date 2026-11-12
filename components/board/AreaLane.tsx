@@ -3,7 +3,7 @@ import { es } from "@/lib/i18n/es";
 import { translateText } from "@/lib/i18n/traslate";
 import { formatDayLabel } from "@/lib/dates/week";
 import AreaDot from "./AreaDot";
-import BoardCell from "./BoardCell";
+import { DroppableCell } from "./BoardCell";
 import { overdueOf, sortForCell } from "./sortTasks";
 import { Area, Task } from "./types";
 
@@ -63,7 +63,10 @@ export default function AreaLane({ area, tasks, days, today, onAddTask }: AreaLa
         {isEmpty && <p className="text-xs text-foreground-secondary">{es.dashboard.board.laneEmpty}</p>}
       </div>
 
-      <BoardCell
+      {/* JV-1 (U2.6.2): every cell takes dropped cards (the area and the day come from where it is) */}
+      <DroppableCell
+        areaId={area.id}
+        dueDate={null}
         tasks={sortForCell(undatedTasks)}
         isToday={false}
         label={translateText(es.dashboard.board.cellLabel, { area: area.name, day: es.dashboard.board.noDate })}
@@ -71,8 +74,10 @@ export default function AreaLane({ area, tasks, days, today, onAddTask }: AreaLa
       />
 
       {days.map((day) => (
-        <BoardCell
+        <DroppableCell
           key={day}
+          areaId={area.id}
+          dueDate={day}
           tasks={sortForCell(tasks.filter((task) => task.dueDate === day))}
           // Overdue tasks also show up in "Hoy", on top of the area (spec 2.1)
           overdueTasks={day === today ? overdueTasks : undefined}

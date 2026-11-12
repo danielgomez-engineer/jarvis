@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { useDroppable } from "@dnd-kit/core";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import { es } from "@/lib/i18n/es";
 import { translateText } from "@/lib/i18n/traslate";
-import TaskCard from "./TaskCard";
+import { DropCell, cellId } from "./dragAndDrop";
+import TaskCard, { DraggableTaskCard } from "./TaskCard";
 import { Task } from "./types";
 
 type BoardCellProps = {
@@ -16,18 +18,33 @@ type BoardCellProps = {
   // JV-1: in "Sin fecha" the done tasks fold away. A day keeps them: they are that day's record,
   // but the inbox would only grow, week after week.
   foldDone?: boolean;
+  // JV-1 (U2.6.2): desktop only, set by DroppableCell: this cell takes dropped cards and its cards can be dragged
+  dropId?: string;
+  dropRef?: (element: HTMLElement | null) => void;
 };
 
 //=====JV-1: ONE CELL = ONE AREA × ONE DAY (or × "Sin fecha")=====
-export default function BoardCell({ tasks, overdueTasks = [], isToday, label, foldDone = false }: BoardCellProps) {
+export default function BoardCell({ tasks, overdueTasks = [], isToday, label, foldDone = false, dropId, dropRef }: BoardCellProps) {
   const [showDone, setShowDone] = useState(false);
 
   const pendingTasks = foldDone ? tasks.filter((task) => !task.completed) : tasks;
   const doneTasks = foldDone ? tasks.filter((task) => task.completed) : [];
   const listed = [...pendingTasks, ...(showDone ? doneTasks : [])];
 
+  // "overdue-" prefix: the same task can also be in its own day, so the keys must differ.
+  // JV-1 (U2.6.2): on desktop every card can be dragged out of this cell; the phone keeps plain cards.
+  const card = (task: Task, overdue: boolean) => {
+    const key = overdue ? `overdue-${task.id}` : String(task.id);
+    return dropId ? (
+      <DraggableTaskCard key={key} task={task} showOverdue={overdue} fromCell={dropId} />
+    ) : (
+      <TaskCard key={key} task={task} showOverdue={overdue} />
+    );
+  };
+
   return (
     <div
+      ref={dropRef}
       aria-label={label}
       role="group"
       // "Hoy" is only the soft background here; its cyan line lives once, on the column header (BoardGrid).
@@ -37,13 +54,8 @@ export default function BoardCell({ tasks, overdueTasks = [], isToday, label, fo
       {/* An empty cell stays empty: a "Nada para hoy" in every lane was noise (the phone shows it once per day, PhoneBoard) */}
       {(overdueTasks.length > 0 || listed.length > 0) && (
         <ul className="space-y-1">
-          {/* "overdue-" prefix: the same task can also be in its own day, so the keys must differ */}
-          {overdueTasks.map((task) => (
-            <TaskCard key={`overdue-${task.id}`} task={task} showOverdue />
-          ))}
-          {listed.map((task) => (
-            <TaskCard key={task.id} task={task} />
-          ))}
+          {overdueTasks.map((task) => card(task, true))}
+          {listed.map((task) => card(task, false))}
         </ul>
       )}
 
@@ -67,4 +79,20 @@ export default function BoardCell({ tasks, overdueTasks = [], isToday, label, fo
       )}
     </div>
   );
+}
+
+type DroppableCellProps = Omit<BoardCellProps, "dropId" | "dropRef"> & {
+  areaId: number;
+  // null = "Sin fecha"
+  dueDate: string | null;
+};
+
+//=====JV-1 (U2.6.2): A DESKTOP CELL THAT TAKES DROPPED CARDS=====
+// A wrapper, so the phone (which also draws BoardCell) never touches dnd-kit
+export function DroppableCell({ areaId, dueDate, ...cellProps }: DroppableCellProps) {
+  const id = cellId(areaId, dueDate);
+  const data: DropCell = { areaId, dueDate, label: cellProps.label };
+  const { setNodeRef } = useDroppable({ id, data });
+
+  return <BoardCell {...cellProps} dropId={id} dropRef={setNodeRef} />;
 }
