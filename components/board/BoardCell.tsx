@@ -3,7 +3,7 @@ import { useDroppable } from "@dnd-kit/core";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import { es } from "@/lib/i18n/es";
 import { translateText } from "@/lib/i18n/traslate";
-import { DropCell, cellId } from "./dragAndDrop";
+import { DropCell, cellId, dragDataOf, moveFor } from "./dragAndDrop";
 import TaskCard, { DraggableTaskCard } from "./TaskCard";
 import { Task } from "./types";
 
@@ -21,10 +21,12 @@ type BoardCellProps = {
   // JV-1 (U2.6.2): desktop only, set by DroppableCell: this cell takes dropped cards and its cards can be dragged
   dropId?: string;
   dropRef?: (element: HTMLElement | null) => void;
+  // A dragged card is over this cell and dropping it here would move it
+  dropTarget?: boolean;
 };
 
 //=====JV-1: ONE CELL = ONE AREA × ONE DAY (or × "Sin fecha")=====
-export default function BoardCell({ tasks, overdueTasks = [], isToday, label, foldDone = false, dropId, dropRef }: BoardCellProps) {
+export default function BoardCell({ tasks, overdueTasks = [], isToday, label, foldDone = false, dropId, dropRef, dropTarget = false }: BoardCellProps) {
   const [showDone, setShowDone] = useState(false);
 
   const pendingTasks = foldDone ? tasks.filter((task) => !task.completed) : tasks;
@@ -49,7 +51,8 @@ export default function BoardCell({ tasks, overdueTasks = [], isToday, label, fo
       role="group"
       // "Hoy" is only the soft background here; its cyan line lives once, on the column header (BoardGrid).
       // Fixed height only on desktop, where empty cells keep the grid even; the phone only draws cells with tasks.
-      className={`space-y-1 sm:min-h-16 rounded-panel p-1.5 ${isToday ? "bg-accent-soft" : "bg-surface-sunken"}`}
+      // JV-1 (U2.6.2): the drop target gets an accent outline drawn inside the cell, so nothing moves (ESTILOS §4.D)
+      className={`space-y-1 sm:min-h-16 rounded-panel p-1.5 ${isToday ? "bg-accent-soft" : "bg-surface-sunken"} ${dropTarget ? "outline-2 -outline-offset-2 outline-accent" : ""}`}
     >
       {/* An empty cell stays empty: a "Nada para hoy" in every lane was noise (the phone shows it once per day, PhoneBoard) */}
       {(overdueTasks.length > 0 || listed.length > 0) && (
@@ -81,7 +84,7 @@ export default function BoardCell({ tasks, overdueTasks = [], isToday, label, fo
   );
 }
 
-type DroppableCellProps = Omit<BoardCellProps, "dropId" | "dropRef"> & {
+type DroppableCellProps = Omit<BoardCellProps, "dropId" | "dropRef" | "dropTarget"> & {
   areaId: number;
   // null = "Sin fecha"
   dueDate: string | null;
@@ -92,7 +95,10 @@ type DroppableCellProps = Omit<BoardCellProps, "dropId" | "dropRef"> & {
 export function DroppableCell({ areaId, dueDate, ...cellProps }: DroppableCellProps) {
   const id = cellId(areaId, dueDate);
   const data: DropCell = { areaId, dueDate, label: cellProps.label };
-  const { setNodeRef } = useDroppable({ id, data });
+  const { setNodeRef, isOver, active } = useDroppable({ id, data });
+  const drag = active ? dragDataOf(active) : undefined;
+  // Lights up only where dropping would change something: never the cell the card came from
+  const dropTarget = isOver && drag !== undefined && moveFor(drag, id, data) !== null;
 
-  return <BoardCell {...cellProps} dropId={id} dropRef={setNodeRef} />;
+  return <BoardCell {...cellProps} dropId={id} dropRef={setNodeRef} dropTarget={dropTarget} />;
 }

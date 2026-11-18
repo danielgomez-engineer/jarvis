@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Active,
   CollisionDetection,
@@ -7,6 +7,7 @@ import {
   DragEndEvent,
   DragOverlay,
   DragStartEvent,
+  MeasuringStrategy,
   MouseSensor,
   pointerWithin,
   useSensor,
@@ -17,9 +18,9 @@ import { translateText } from "@/lib/i18n/traslate";
 import { formatDayLabel, weekDays } from "@/lib/dates/week";
 import AreaLane from "./AreaLane";
 import { useBoard } from "./BoardContext";
-import { DragData, dragDataOf, dropCellOf } from "./dragAndDrop";
+import { DragData, dragDataOf, dropCellOf, moveFor } from "./dragAndDrop";
 import { TaskCardPreview } from "./TaskCard";
-import { Area, Task, TaskMove } from "./types";
+import { Area, Task } from "./types";
 
 type BoardGridProps = {
   areas: Area[];
@@ -34,6 +35,10 @@ const COLUMN_HEADER = "border-b-2 px-1.5 pb-1 text-xs font-medium uppercase trac
 
 // JV-1 (U2.6.2): the drag starts once the mouse moves 5px, so a plain click on a card is still a click
 const MOUSE_OPTIONS = { activationConstraint: { distance: 5 } };
+
+// JV-1 (U2.6.2): below ~1150px the board scrolls sideways inside its box, and dnd-kit scrolls it on its own
+// when the card nears an edge. The cells are measured again as it scrolls, so the one under the mouse stays right.
+const MEASURING = { droppable: { strategy: MeasuringStrategy.Always } };
 
 // JV-1 (U2.6.2): the target is the cell under the mouse. A repeated task always needs a day,
 // so "Sin fecha" never takes it (same rule as the menu and the API)
@@ -87,20 +92,28 @@ export default function BoardGrid({ areas, tasks, weekStart, today, onAddTask }:
 
     const drag = dragDataOf(active);
     const cell = dropCellOf(over);
-    // Dropped outside the cells, or back in the cell it came from (ordering inside a cell is U2.6.3)
-    if (!drag || !cell || over?.id === drag.fromCell) return;
+    // Dropped outside the cells
+    if (!drag || !cell || !over) return;
 
-    // Only what changes, like "Mover a…". A drag can change the area and the day at once
-    const move: TaskMove = {};
-    if (cell.areaId !== drag.task.areaId) move.areaId = cell.areaId;
-    if (cell.dueDate !== drag.task.dueDate) move.dueDate = cell.dueDate;
-    if (Object.keys(move).length > 0) taskActions.onMove(drag.task, move);
+    const move = moveFor(drag, String(over.id), cell);
+    if (move) taskActions.onMove(drag.task, move);
   };
+
+  // JV-1 (U2.6.2): while a card is dragged, the whole page shows the closed hand (app/globals.css).
+  // The floating copy is inert, so the cursor would otherwise come from whatever is under it.
+  useEffect(() => {
+    if (!dragged) return;
+
+    const root = document.documentElement;
+    root.setAttribute("data-dragging", "");
+    return () => root.removeAttribute("data-dragging");
+  }, [dragged]);
 
   return (
     <DndContext
       sensors={sensors}
       collisionDetection={cellUnderMouse}
+      measuring={MEASURING}
       accessibility={DRAG_ACCESSIBILITY}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
@@ -127,7 +140,8 @@ export default function BoardGrid({ areas, tasks, weekStart, today, onAddTask }:
         </div>
       </div>
 
-      {/* JV-1 (U2.6.2): no drop animation: when the mouse is released the card is already drawn in its new cell (optimistic) */}
+      {/* JV-1 (U2.6.2): no drop animation, on purpose: when the mouse is released the card is already drawn in its
+          new cell (optimistic), so a flight there would show it twice. It also leaves nothing to reduce for reduced motion. */}
       <DragOverlay dropAnimation={null}>
         {dragged && <TaskCardPreview task={dragged.task} showOverdue={dragged.showOverdue} />}
       </DragOverlay>

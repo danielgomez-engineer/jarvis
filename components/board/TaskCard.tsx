@@ -42,7 +42,8 @@ export default function TaskCard({ task, showOverdue = false, ref, onMouseDown, 
       }}
       // Phone: no padding, because the check and the "⋯" become 44px boxes at the edges (ESTILOS §3.3).
       // Two separate 44px targets, so a thumb can't mark the task done while aiming for the menu.
-      className={`group flex items-start gap-2 rounded-card border px-2 py-1.5 text-sm transition-colors duration-150 max-sm:gap-0 max-sm:p-0 ${dragging ? DRAG_HOLE : "border-line bg-surface hover:border-line-strong"}`}
+      // JV-1 (U2.6.2): only draggable cards get onMouseDown, and they show the open hand (the check and "⋯" keep theirs)
+      className={`group flex items-start gap-2 rounded-card border px-2 py-1.5 text-sm transition-colors duration-150 max-sm:gap-0 max-sm:p-0 ${onMouseDown ? "cursor-grab" : ""} ${dragging ? DRAG_HOLE : "border-line bg-surface hover:border-line-strong"}`}
     >
       {/* JV-1 (U2.4.2): a real checkbox, so a screen reader says "Clase de inglés, casilla, marcada".
           The input is hidden and the circle is drawn; the label makes the whole circle clickable. */}
