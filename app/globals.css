@@ -74,3 +74,9 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+/* JV-1 (U2.6.2): while a card is dragged (BoardGrid sets the attribute), the whole page shows the closed hand,
+   also over checks, buttons and cells that have their own cursor */
+html[data-dragging] * {
+  cursor: grabbing !important;
+}

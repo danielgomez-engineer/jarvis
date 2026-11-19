@@ -131,6 +131,14 @@ export const es = {
       moved: "{title} movida a {destination}",
       destinationToday: "hoy",
       destinationTomorrow: "mañana",
+      // JV-1 (U2.6.2): drag and drop (desktop). A drag can change the day and the area at once
+      dayInArea: "{day} en {area}",
+      // Read by screen readers while dragging
+      dragStart: "Moviendo {title}",
+      dragOver: "{title} sobre {cell}",
+      dragDropped: "{title} soltada en {cell}",
+      dragCancel: "{title} vuelve a su sitio",
+      dragInstructions: "Para mover una tarea sin arrastrar, abre su menú con la tecla M y elige Mover a.",
       markedUrgent: "{title} marcada como urgente",
       unmarkedUrgent: "{title} ya no es urgente",
       // JV-1 (U2.5.2): weekly repeat
