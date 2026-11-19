@@ -199,6 +199,8 @@ export default function DashboardPage() {
       // Not while typing, nor inside the task menu (a popover) or a dialog: they handle their own keys
       const typing = (e.target as HTMLElement).closest("input, textarea, select, [contenteditable='true'], [popover], dialog");
       if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
+      // JV-1 (U2.6.2): not while a card is being dragged (BoardGrid marks <html>): ←/→ would change the week under it
+      if (document.documentElement.hasAttribute("data-dragging")) return;
 
       if (e.key === "n" || e.key === "N") {
         // preventDefault so the "n" isn't typed into the field that opens
@@ -370,9 +372,11 @@ export default function DashboardPage() {
       document.querySelector<HTMLElement>(`[data-task-trigger="${taskId}"]`)?.focus({ preventScroll: true });
     });
 
-  const handleMoveTask = async (task: Task, move: TaskMove) => {
+  const handleMoveTask = async (task: Task, move: TaskMove, by: "menu" | "drag" = "menu") => {
     const saving = updateTask(task, move);
-    focusTaskMenu(task.id);
+    // JV-1 (U2.6.2): after "Mover a…" the keyboard focus follows the card. After a mouse drag it stays where it was:
+    // moving it would only leave the card's "⋯" showing for no reason
+    if (by === "menu") focusTaskMenu(task.id);
 
     const updated = await saving;
     if (!updated) return;
@@ -536,7 +540,15 @@ export default function DashboardPage() {
                     onAddTask={openNewTaskIn}
                   />
                 ) : (
-                  <BoardGrid areas={visibleAreas} tasks={tasks} weekStart={weekStart} today={currentDay} onAddTask={openNewTaskIn} />
+                  // JV-1 (U2.6.2): no dragging while another week loads: its answer would replace the cards and undo the move on screen
+                  <BoardGrid
+                    areas={visibleAreas}
+                    tasks={tasks}
+                    weekStart={weekStart}
+                    today={currentDay}
+                    onAddTask={openNewTaskIn}
+                    dragDisabled={weekLoading}
+                  />
                 )}
               </BoardProvider>
             </div>

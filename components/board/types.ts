@@ -36,6 +36,7 @@ export type TaskActions = {
   onToggleCompleted: (task: Task) => void;
   onToggleUrgent: (task: Task) => void;
   onToggleRepeat: (task: Task) => void;
-  onMove: (task: Task, move: TaskMove) => void;
+  // JV-1 (U2.6.2): `by` says where the move came from; only "Mover a…" moves the keyboard focus with the card
+  onMove: (task: Task, move: TaskMove, by?: "menu" | "drag") => void;
   onDelete: (task: Task) => void;
 };

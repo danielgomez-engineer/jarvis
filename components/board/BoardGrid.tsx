@@ -9,6 +9,8 @@ import {
   DragStartEvent,
   MeasuringStrategy,
   MouseSensor,
+  SensorDescriptor,
+  SensorOptions,
   pointerWithin,
   useSensor,
   useSensors,
@@ -28,6 +30,8 @@ type BoardGridProps = {
   weekStart: string;
   today: string;
   onAddTask: (areaId: number) => void;
+  // JV-1 (U2.6.2): true while another week loads
+  dragDisabled?: boolean;
 };
 
 // The 2px bottom border is always there (transparent) so "Hoy" can turn it cyan without moving anything
@@ -35,6 +39,7 @@ const COLUMN_HEADER = "border-b-2 px-1.5 pb-1 text-xs font-medium uppercase trac
 
 // JV-1 (U2.6.2): the drag starts once the mouse moves 5px, so a plain click on a card is still a click
 const MOUSE_OPTIONS = { activationConstraint: { distance: 5 } };
+const NO_SENSORS: SensorDescriptor<SensorOptions>[] = [];
 
 // JV-1 (U2.6.2): below ~1150px the board scrolls sideways inside its box, and dnd-kit scrolls it on its own
 // when the card nears an edge. The cells are measured again as it scrolls, so the one under the mouse stays right.
@@ -75,7 +80,7 @@ const DRAG_ACCESSIBILITY: DndContextProps["accessibility"] = {
 };
 
 //=====JV-1: THE WEEKLY BOARD: one lane per area × ("Sin fecha" + Monday…Sunday)=====
-export default function BoardGrid({ areas, tasks, weekStart, today, onAddTask }: BoardGridProps) {
+export default function BoardGrid({ areas, tasks, weekStart, today, onAddTask, dragDisabled = false }: BoardGridProps) {
   const { taskActions } = useBoard();
   const days = weekDays(weekStart);
   // JV-1 (U2.6.2): mouse only. The phone shows PhoneBoard instead, and the keyboard moves cards with "Mover a…"
@@ -96,7 +101,7 @@ export default function BoardGrid({ areas, tasks, weekStart, today, onAddTask }:
     if (!drag || !cell || !over) return;
 
     const move = moveFor(drag, String(over.id), cell);
-    if (move) taskActions.onMove(drag.task, move);
+    if (move) taskActions.onMove(drag.task, move, "drag");
   };
 
   // JV-1 (U2.6.2): while a card is dragged, the whole page shows the closed hand (app/globals.css).
@@ -111,7 +116,8 @@ export default function BoardGrid({ areas, tasks, weekStart, today, onAddTask }:
 
   return (
     <DndContext
-      sensors={sensors}
+      // No sensors = no card can be picked up
+      sensors={dragDisabled ? NO_SENSORS : sensors}
       collisionDetection={cellUnderMouse}
       measuring={MEASURING}
       accessibility={DRAG_ACCESSIBILITY}
