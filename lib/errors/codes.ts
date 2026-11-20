@@ -15,6 +15,8 @@ export const API_ERROR_CODES = {
   INVALID_AREA_ORDER: "INVALID_AREA_ORDER",
   // JV-1 (U2.5.1): repeated tasks
   NOT_A_REPEAT_DAY: "NOT_A_REPEAT_DAY",
+  // JV-1 (U2.6.3): reorder the tasks of a cell
+  INVALID_TASK_ORDER: "INVALID_TASK_ORDER",
 } as const;
 
 export type ApiErrorCode =

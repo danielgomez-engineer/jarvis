@@ -4,7 +4,7 @@ import { validToken } from "@/lib/auth/token";
 import { daySchema } from "@/lib/validations/tasks";
 import { API_ERROR_CODES, FIELD_ERROR_CODES } from "@/lib/errors/codes";
 import { DB_INT_MAX } from "@/lib/validations/limits";
-import { toDateOnly } from "@/lib/tasks/cells";
+import { repeatsOn, toDateOnly } from "@/lib/tasks/cells";
 
 type Params = { params: Promise<{ id: string; date: string }> };
 
@@ -40,13 +40,8 @@ async function findRepeatDay(params: Params["params"]) {
 
   // It must repeat, on that weekday, and not before its first day (dueDate)
   const day = toDateOnly(date);
-  const isRepeatDay =
-    task.repeatsWeekly &&
-    task.dueDate !== null &&
-    day.getTime() >= task.dueDate.getTime() &&
-    day.getUTCDay() === task.dueDate.getUTCDay();
 
-  if (!isRepeatDay) {
+  if (!repeatsOn(task, day)) {
     return NextResponse.json({ code: API_ERROR_CODES.NOT_A_REPEAT_DAY }, { status: 400 });
   }
 

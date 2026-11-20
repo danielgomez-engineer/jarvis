@@ -31,6 +31,14 @@ export const updateTaskSchema = z.object({
     repeatsWeekly: z.boolean(),
 }).partial().refine((data) => Object.keys(data).length > 0);
 
+// JV-1 (U2.6.3): reorder one cell. "ids" are every task shown in that cell (area × day, or × "Sin fecha"),
+// in the new order. Ownership, duplicates and that they are exactly that cell are checked in the route (they need the DB).
+export const reorderTasksSchema = z.object({
+    areaId: areaIdSchema,
+    dueDate: dueDateSchema,
+    ids: z.array(z.number().int().positive().max(DB_INT_MAX)).min(1),
+});
+
 // JV-1: GET /api/tasks?weekStart=2026-10-26&today=2026-10-31 → that week's tasks + the ones without a date.
 // "today" comes from the browser (the person's clock) and adds the overdue tasks of any week.
 export const taskWeekQuerySchema = z.object({

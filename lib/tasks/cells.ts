@@ -51,6 +51,17 @@ export function serializeTask<T extends { dueDate: Date | null }>(task: T) {
   };
 }
 
+// JV-1 (U2.5.1): a repeated task shows up on a day if it falls on its weekday and isn't before its first day (dueDate).
+// Shared by the completions route (U2.5.1) and the cell order route (U2.6.3)
+export function repeatsOn(task: { repeatsWeekly: boolean; dueDate: Date | null }, day: Date): boolean {
+  return (
+    task.repeatsWeekly &&
+    task.dueDate !== null &&
+    day.getTime() >= task.dueDate.getTime() &&
+    day.getUTCDay() === task.dueDate.getUTCDay()
+  );
+}
+
 // JV-1 (U2.5.1): a repeated task seen from one week. Its dueDate (the first day) becomes this week's day
 // with the same weekday, and it's done only if that day has a completion. The board then treats it like any task.
 export function placeInWeek<
